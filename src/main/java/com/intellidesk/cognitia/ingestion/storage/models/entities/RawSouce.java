@@ -1,4 +1,4 @@
-package com.intellidesk.cognitia.ingestion.models.entities;
+package com.intellidesk.cognitia.ingestion.storage.models.entities;
 
 import java.util.Date;
 import java.util.Objects;
@@ -7,7 +7,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
-import ch.qos.logback.core.status.Status;
+
+import com.intellidesk.cognitia.ingestion.storage.models.enums.Status;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

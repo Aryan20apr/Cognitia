@@ -1,0 +1,5 @@
+{"properties": [{
+  "name": "storage.cloudinary_url",
+  "type": "java.lang.String",
+  "description": "A description for 'storage.cloudinary_url'"
+}]}
