@@ -14,6 +14,7 @@ public record CloudinaryUploadResult(
     String signature,
     String originalFilename,
     String type,
+    String assetId,
     String createdAt,
     Integer width,
     Integer height,

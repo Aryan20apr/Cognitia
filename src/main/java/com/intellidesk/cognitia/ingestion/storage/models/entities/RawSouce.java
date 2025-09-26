@@ -12,12 +12,16 @@ import com.intellidesk.cognitia.ingestion.storage.models.enums.Status;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -31,12 +35,16 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-
+@Builder
 public class RawSouce {
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID resId;
+
+    @Column(nullable = false, unique = true)
+    private String assetId;
+
 
     @Column(nullable = false, unique = true)
     private String name;
@@ -47,16 +55,22 @@ public class RawSouce {
     @Column(nullable = false, unique = true)
     private String url;
 
-    @Column(nullable = false)
-    private String language;
+    @Column(nullable = false, unique = true)
+    private String secureUrl;
 
+    @Column(nullable = false, unique = true)
+    private String signature;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private Status status;
 
     @Column(nullable = false)
-    private String type;
+    private String format;
 
     @Column(nullable = false)
     private Double size;
+    
 
     @CreatedDate
     @CreationTimestamp
@@ -70,7 +84,7 @@ public class RawSouce {
 
     @Override
     public int hashCode() {
-       return Objects.hash(resId, name, description, url, language);
+       return Objects.hash(resId, name, description, url, format);
     }
 
     @Override
@@ -101,11 +115,6 @@ public class RawSouce {
             if (other.url != null)
                 return false;
         } else if (!url.equals(other.url))
-            return false;
-        if (language == null) {
-            if (other.language != null)
-                return false;
-        } else if (!language.equals(other.language))
             return false;
         return true;
     }

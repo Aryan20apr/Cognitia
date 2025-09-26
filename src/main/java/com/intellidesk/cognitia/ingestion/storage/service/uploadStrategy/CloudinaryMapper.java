@@ -9,7 +9,7 @@ public class CloudinaryMapper {
 
     public static CloudinaryUploadResult fromMap(Map<String, Object> map) {
         if (map == null) return null;
-
+        
         return CloudinaryUploadResult.builder()
                 .publicId((String) map.get("public_id"))
                 .version(map.get("version") != null ? ((Number) map.get("version")).longValue() : null)
@@ -17,6 +17,7 @@ public class CloudinaryMapper {
                 .resourceType((String) map.get("resource_type"))
                 .bytes(map.get("bytes") != null ? ((Number) map.get("bytes")).longValue() : null)
                 .url((String) map.get("url"))
+                .assetId((String) map.get("asset_id"))
                 .secureUrl((String) map.get("secure_url"))
                 .signature((String) map.get("signature"))
                 .originalFilename((String) map.get("original_filename"))

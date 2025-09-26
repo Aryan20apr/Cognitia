@@ -31,6 +31,7 @@ public class PdfUploadStrategy implements FileUploadStrategy {
                         : null
             )
         );
+        log.info("[PdfUploadStrategy] [upload] Cloudinary upload result: {}", result);
         return CloudinaryMapper.fromMap(result);
     }
 
