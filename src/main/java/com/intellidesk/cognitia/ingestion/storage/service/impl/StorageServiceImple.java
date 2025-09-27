@@ -52,7 +52,7 @@ public class StorageServiceImple implements StorageService {
                 .build();
 
             IngestionOutbox ingestionOutbox = IngestionOutbox.builder()
-                .resId(rawSouce.getResId())
+                .source(rawSouce)
                 .status(IngestionStatus.PENDING_PROCESSING)
                 .build();
 

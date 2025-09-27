@@ -40,7 +40,7 @@ public class IngestionOutbox {
 
     @OneToOne(fetch = FetchType.LAZY, mappedBy = "outboxId", cascade = CascadeType.ALL)
     @JoinColumn(name = "resId", referencedColumnName = "resId")
-    private UUID resId;
+    private RawSouce source;
 
     @Column(name = "status", nullable = false)
     private IngestionStatus status;
@@ -60,7 +60,7 @@ public class IngestionOutbox {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, resId, status);
+        return Objects.hash(id, status);
         
     }
 
@@ -77,11 +77,6 @@ public class IngestionOutbox {
             if (other.id != null)
                 return false;
         } else if (!id.equals(other.id))
-            return false;
-        if (resId == null) {
-            if (other.resId != null)
-                return false;
-        } else if (!resId.equals(other.resId))
             return false;
         if (status != other.status)
             return false;
