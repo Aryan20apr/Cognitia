@@ -1,10 +1,9 @@
-package com.intellidesk.cognitia.ingestion.storage.service.uploadStrategy;
+package com.intellidesk.cognitia.ingestion.service.uploadStrategy;
 
 import java.io.IOException;
-
 import org.springframework.web.multipart.MultipartFile;
 
-import com.intellidesk.cognitia.ingestion.storage.models.dtos.CloudinaryUploadResult;
+import com.intellidesk.cognitia.ingestion.models.dtos.CloudinaryUploadResult;
 
 public interface FileUploadStrategy {
 

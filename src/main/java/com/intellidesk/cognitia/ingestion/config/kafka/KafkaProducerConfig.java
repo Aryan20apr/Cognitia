@@ -1,4 +1,4 @@
-package com.intellidesk.cognitia.config.kafka;
+package com.intellidesk.cognitia.ingestion.config.kafka;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,7 +13,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
-import com.intellidesk.cognitia.ingestion.storage.models.entities.RawSouce;
+import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
+
 
 @Configuration
 public class KafkaProducerConfig {
@@ -23,7 +24,7 @@ public class KafkaProducerConfig {
 
 
      @Bean
-    public ProducerFactory<String, RawSouce> userFactory() {
+    public ProducerFactory<String, IngestionOutbox> ingestionFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -32,7 +33,7 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, RawSouce> kafkaTemplate() {
-        return new KafkaTemplate<>(userFactory());
+    public KafkaTemplate<String, IngestionOutbox> kafkaTemplate() {
+        return new KafkaTemplate<>(ingestionFactory());
     }
 }

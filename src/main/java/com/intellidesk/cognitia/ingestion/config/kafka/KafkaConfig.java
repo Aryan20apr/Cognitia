@@ -1,4 +1,4 @@
-package com.intellidesk.cognitia.config.kafka;
+package com.intellidesk.cognitia.ingestion.config.kafka;
 
 import java.util.HashMap;
 import java.util.Map;

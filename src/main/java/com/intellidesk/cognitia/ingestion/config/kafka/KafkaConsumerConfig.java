@@ -1,4 +1,4 @@
-package com.intellidesk.cognitia.config.kafka;
+package com.intellidesk.cognitia.ingestion.config.kafka;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,16 +14,19 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 
-import com.intellidesk.cognitia.ingestion.storage.models.entities.RawSouce;
+import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
+import com.intellidesk.cognitia.ingestion.models.entities.RawSouce;
+
+
 
 @Configuration
 public class KafkaConsumerConfig {
     
-    @Value(value = "${spring.kafka.bootsrap-servers}")
+    @Value(value = "${spring.kafka.bootstrap-servers}")
     private String bootstrapAddress;
 
     @Bean
-    public ConsumerFactory<String, RawSouce> resourceConsumerFactory(String groupId){
+    public ConsumerFactory<String, IngestionOutbox> resourceConsumerFactory(String groupId){
        Map<String, Object> props = new HashMap<>();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
     props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
@@ -37,9 +40,9 @@ public class KafkaConsumerConfig {
 }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, RawSouce> userKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, RawSouce> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(resourceConsumerFactory("user_group"));
+    public ConcurrentKafkaListenerContainerFactory<String, IngestionOutbox> ingestionKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String,IngestionOutbox> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(resourceConsumerFactory("{ingestion.group.name}"));
         return factory;
     }
 }

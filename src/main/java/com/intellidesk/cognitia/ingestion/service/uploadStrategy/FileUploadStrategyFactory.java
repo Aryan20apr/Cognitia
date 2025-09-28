@@ -1,4 +1,4 @@
-package com.intellidesk.cognitia.ingestion.storage.service.uploadStrategy;
+package com.intellidesk.cognitia.ingestion.service.uploadStrategy;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
