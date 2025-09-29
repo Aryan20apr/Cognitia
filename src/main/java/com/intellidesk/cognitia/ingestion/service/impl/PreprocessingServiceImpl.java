@@ -10,33 +10,49 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
 import com.intellidesk.cognitia.ingestion.models.entities.RawSouce;
 import com.intellidesk.cognitia.ingestion.service.PreprocessingService;
+import com.intellidesk.cognitia.ingestion.service.preprocessingStrategy.DocumentPreprocessingStrategy;
+import com.intellidesk.cognitia.ingestion.service.preprocessingStrategy.PreprocessingStrategy;
 
+import org.springframework.core.io.PathResource;
+import org.springframework.core.io.Resource;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
+
 public class PreprocessingServiceImpl implements PreprocessingService {
 
+    private final PreprocessingStrategy preprocessingStrategy;
     private static final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15)) // connection timeout
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
+
+    PreprocessingServiceImpl(PreprocessingStrategy preprocessingStrategy){
+        this.preprocessingStrategy = preprocessingStrategy;
+    }
    
     @Async
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
     public void preprocessFile(IngestionOutbox ingestoionOutbox){
 
         RawSouce rawSource = ingestoionOutbox.getSource();
+        
         // Use ingestion outbox instead
         String url = rawSource.getUrl();
         log.info("Starting preprocessing for URL: {}", url);
 
         Path filePth = getLocalFilePath(url, rawSource.getFormat());
+
+        preprocessingStrategy.preprocess(new PathResource(filePth), rawSource);
 
         
 
