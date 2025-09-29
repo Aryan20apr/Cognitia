@@ -46,7 +46,7 @@ public class IngestionOutbox {
     private IngestionStatus status;
 
     @Column(nullable = false)
-    private Integer retries = 0;
+    private Integer retries;
 
     @CreatedDate
     @CreationTimestamp

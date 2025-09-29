@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class IngestionSchedularServiceImpl implements IngetionSchedularService {
 
     private final ResourceOutboxRepository resourceOutboxRepository;
-    private final KafkaTemplate<String, RawSouce> kafkaTemplate;
+    private final KafkaTemplate<String, IngestionOutbox> kafkaTemplate;
 
     @Value("${ingestion.topic.name}")
     private String topic;
@@ -48,16 +48,12 @@ public class IngestionSchedularServiceImpl implements IngetionSchedularService {
 
         pendingIngestions.forEach(ingestion -> {
             try {
-                RawSouce rawSource = ingestion.getSource(); // Get associated RawSource
+               
 
-                if (rawSource == null) {
-                    log.error("No RawSource found for ingestion ID: {}", ingestion.getId());
-                    updateIngestionStatus(ingestion, IngestionStatus.FAILED);
-                    return;
-                }
+              
 
                 // Publish to Kafka topic
-                kafkaTemplate.send(topic, rawSource.getResId().toString(), rawSource)
+                kafkaTemplate.send(topic, ingestion.getId().toString(), ingestion)
                         .whenComplete((result, ex) -> {
                             if (ex != null) {
                                 log.error("Failed to publish message for ingestion ID: {}", ingestion.getId(), ex);
