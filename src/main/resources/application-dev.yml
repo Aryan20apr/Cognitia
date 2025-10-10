@@ -2,12 +2,13 @@ server:
   port: 8082
 
 spring:
-  flyway:
-    enabled: true
-    default-schema: migrations
-    schemas: public
-    locations: classpath:db/migration/postgresql
-    
+  # flyway:
+  #   enabled: true
+  #   default-schema: migrations
+  #   schemas: public
+  #   locations: classpath:db/migration/postgresql
+  config:
+    import: optional:secrets-dev.yml
   data:
     redis:
       url: localhost
@@ -17,9 +18,39 @@ spring:
     type: redis
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/cognitia
-    username: postgres
-    password: qwerty123
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/cognitia}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD}
+  ai:
+    vectorstore:
+      pgvector:
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: 1536
+        max-document-batch-size: 10000
+        initialize-schema: true
+        # schema-name: coginita_vectorstore
+        schema-validation: true
+        datasource:
+          url: ${VECTORSTORE_DATABASE_URL:jdbc:postgresql://localhost:5433/cognitia}
+          username: ${VECTORSTORE_DATABASE_USERNAME:postgres}
+          password: ${VECTORSTORE_DATABASE_PASSWORD}
+        # Move below config to secrets file
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${OPENAI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      embedding:
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL:gemini-embedding-001}
+          dimensions: ${OPENAI_EMBEDDING_DIMENSIONS:1536}
+      chat:
+        options:
+          model: ${OPENAI_CHAT_MODEL:gemini-2.5-pro}
+        completions-path: ${OPENAI_COMPLETIONS_PATH:/chat/completions}
+
+  # huggingface:
+  #   api-key: ${HUGGINGFACE_API_KEY}
+  #   embedding-model: ${HUGGINGFACE_EMBEDDING_MODEL:nomic-ai/nomic-embed-text-v1.5}
 
   jpa:
     hibernate:
@@ -36,20 +67,19 @@ spring:
     show-sql: true
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       properties:
-        enable: 
-          idempotence: true
-  
+        enable:
+          idempotence: ${KAFKA_IDEMPOTENCE:true}
+
 ingestion:
   topic:
-    name: resource-ingestion-preprocessing
+    name: ${INGESTION_TOPIC_NAME:resource-ingestion-preprocessing}
   group:
-    name: ingestion-group
-  partitions: 1
-  replicas: 1
-
+    name: ${INGESTION_GROUP_NAME:ingestion-group}
+  partitions: ${INGESTION_PARTITIONS:1}
+  replicas: ${INGESTION_REPLICAS:1}
 
 # Kafka Configuration
 # logging.level.org.apache.kafka.clients.consumer.internals.ConsumerCoordinator=DEBUG
@@ -58,13 +88,6 @@ ingestion:
 # logging.level.org.springframework.kafka.consumer=DEBUG
 
 # idempotency only works for retries from the same producer instance.
-spring.kafka.producer.properties.enable.idempotence: true
 
 storage:
-  cloudinary_url: cloudinary://351844175262129:totRi-4ZdF_Lxbz9XlTk6SUmc84@dfckaryif 
-
-
-
-    
-
-
+  cloudinary_url: ${CLOUDINARY_URL}
