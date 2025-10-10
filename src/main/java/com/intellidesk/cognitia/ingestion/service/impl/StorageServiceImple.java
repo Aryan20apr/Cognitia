@@ -47,7 +47,7 @@ public class StorageServiceImple implements StorageService {
                 .secureUrl(cloudinaryUploadResult.secureUrl())
                 .signature(cloudinaryUploadResult.signature())
                 .size((double)file.getSize())
-                .format(file.getContentType())
+                .format(getFileExtension(file))
                 .status(Status.UPLOADED)
                 .build();
 
@@ -65,5 +65,19 @@ public class StorageServiceImple implements StorageService {
             throw new ResourceUploadException(e.getMessage());
         }
     }
+
+    public String getFileExtension(MultipartFile file) {
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null) {
+            return null; // or throw exception
+        }
+
+        int dotIndex = originalFilename.lastIndexOf(".");
+        if (dotIndex == -1) {
+            return ""; // no extension
+        }
+        return originalFilename.substring(dotIndex); // includes the dot (.pdf, .txt, etc.)
+}
+
     
 }

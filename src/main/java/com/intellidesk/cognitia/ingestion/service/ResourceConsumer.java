@@ -7,13 +7,15 @@ import org.springframework.stereotype.Component;
 
 import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class ResourceConsumer {
     
-    private PreprocessingService preprocessingService;
+    private final PreprocessingService preprocessingService;
 
      public CountDownLatch latch = new CountDownLatch(3);
 

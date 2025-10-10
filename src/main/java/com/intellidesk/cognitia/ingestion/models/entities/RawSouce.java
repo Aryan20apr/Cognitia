@@ -79,7 +79,7 @@ public class RawSouce {
 
     @LastModifiedDate
     @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false, updatable = false )
+    @Column(name = "updated_at", nullable = false, updatable = true )
     private Date updatedAt;
 
     @Override

@@ -39,7 +39,7 @@ public class IngestionSchedularServiceImpl implements IngetionSchedularService {
         log.info("Starting to process pending resource ingestions");
 
         List<IngestionOutbox> pendingIngestions = resourceOutboxRepository
-                .findByStatusOrderByCreatedAtAsc(IngestionStatus.FAILED);
+                .findByStatusOrderByCreatedAtAsc(IngestionStatus.PENDING_PROCESSING);
 
         if (pendingIngestions.isEmpty()) {
             log.info("No pending ingestions found");
@@ -48,9 +48,6 @@ public class IngestionSchedularServiceImpl implements IngetionSchedularService {
 
         pendingIngestions.forEach(ingestion -> {
             try {
-               
-
-              
 
                 // Publish to Kafka topic
                 kafkaTemplate.send(topic, ingestion.getId().toString(), ingestion)
