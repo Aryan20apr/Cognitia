@@ -9,15 +9,16 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
 import com.intellidesk.cognitia.ingestion.models.entities.RawSouce;
 import com.intellidesk.cognitia.ingestion.service.PreprocessingService;
-import com.intellidesk.cognitia.ingestion.service.preprocessingStrategy.DocumentPreprocessingStrategy;
 import com.intellidesk.cognitia.ingestion.service.preprocessingStrategy.PreprocessingStrategy;
 
 import org.springframework.core.io.PathResource;
@@ -27,17 +28,20 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-
 public class PreprocessingServiceImpl implements PreprocessingService {
 
     private final PreprocessingStrategy preprocessingStrategy;
+
+    private VectorStore vectorStore;
+
     private static final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15)) // connection timeout
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    PreprocessingServiceImpl(PreprocessingStrategy preprocessingStrategy){
+    PreprocessingServiceImpl(PreprocessingStrategy preprocessingStrategy,  VectorStore vectorStore){
         this.preprocessingStrategy = preprocessingStrategy;
+        this.vectorStore = vectorStore;
     }
    
     @Async
@@ -52,10 +56,9 @@ public class PreprocessingServiceImpl implements PreprocessingService {
 
         Path filePth = getLocalFilePath(url, rawSource.getFormat());
 
-        preprocessingStrategy.preprocess(new PathResource(filePth), rawSource);
+        List<Document> chunks =  preprocessingStrategy.preprocess(new PathResource(filePth), rawSource);
 
-        
-
+        vectorStore.add(chunks);
     }
 
 
@@ -66,8 +69,6 @@ public class PreprocessingServiceImpl implements PreprocessingService {
             log.error("Error downloading file from URL {}: {}", url, e.getMessage());
             return null;
         }
-
-
     }
 
 
