@@ -19,7 +19,7 @@ spring:
 
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/cognitia}
-    username: ${DATABASE_USERNAME:postgres}
+    username: ${DATABASE_USERNAME:cognitia}
     password: ${DATABASE_PASSWORD}
   ai:
     vectorstore:
@@ -32,8 +32,8 @@ spring:
         # schema-name: coginita_vectorstore
         schema-validation: true
         datasource:
-          url: ${VECTORSTORE_DATABASE_URL:jdbc:postgresql://localhost:5433/cognitia}
-          username: ${VECTORSTORE_DATABASE_USERNAME:postgres}
+          url: ${VECTORSTORE_DATABASE_URL}
+          username: ${VECTORSTORE_DATABASE_USERNAME:cognitia}
           password: ${VECTORSTORE_DATABASE_PASSWORD}
         # Move below config to secrets file
     openai:
@@ -88,6 +88,18 @@ ingestion:
 # logging.level.org.springframework.kafka.consumer=DEBUG
 
 # idempotency only works for retries from the same producer instance.
+
+logging:
+  level:
+    org:
+      springframework:
+        ai:
+          chat:
+            memory: DEBUG
+            client:
+              advisor: DEBUG
+              ChatMemoryAdvisor: DEBUG
+
 
 storage:
   cloudinary_url: ${CLOUDINARY_URL}
