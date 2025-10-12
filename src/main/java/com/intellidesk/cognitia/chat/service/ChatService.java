@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.document.Document;
@@ -30,6 +31,7 @@ public class ChatService {
     private final ChatMessageRepository messageRepository;
     private final VectorStore vectorStore;
     private final SimpleChatMemoryService simpleChatMemoryService;
+    private final ChatMemoryHydrator chatMemoryHydrator;
 
 
     @Transactional
@@ -58,12 +60,12 @@ public class ChatService {
 
         thread.addMessage(userMsg);
 
-        String history = simpleChatMemoryService.loadMemoryForThread(threadId);
+        // String history = simpleChatMemoryService.loadMemoryForThread(threadId);
+        chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
        
         String systemPrompt = """
-                You are an intelligent assistant.
-                Use the following context and previous conversation history to answer clearly and accurately.
-
+                 You are a helpful assistant. Use both context and prior chat memory
+                to generate clear and accurate answers.
 
                 Always respond in JSON format matching this schema:
                 {
@@ -73,28 +75,30 @@ public class ChatService {
                   "confidenceScore": number
                 }
 
-                 If the information desired in USER message is not part of the context provided, simply reply: 'I do not have answer to this question.', as part of answer field in the json strcture provided above
+                 If you do not find relevant information in the context, respond with:
+                {
+                    "answer": "I do not have an answer to this question.",
+                    "sources": [],
+                    "followUpSuggestions": [],
+                    "confidenceScore": 0
+                }
                 """;
 
         String fullPrompt = """
                 Context:
                 %s
 
-                Conversation History:
-                %s
-
                 User:
                 %s
-                """.formatted(context, history, userMessage);
+                """.formatted(context, userMessage);
 
         // 5️⃣ Call the LLM
         CustomChatResponse customChatResponse = chatClient.prompt()
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, threadId.toString())) // Connect memory
                 .system(systemPrompt)
                 .user(fullPrompt)
                 .call()
                 .entity(CustomChatResponse.class);
-    
-           
     
             // 5️⃣ Save AI response
             ChatMessage aiMsg = ChatMessage.builder()
