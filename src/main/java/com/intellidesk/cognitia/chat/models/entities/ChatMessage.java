@@ -1,6 +1,5 @@
 package com.intellidesk.cognitia.chat.models.entities;
 
-import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
