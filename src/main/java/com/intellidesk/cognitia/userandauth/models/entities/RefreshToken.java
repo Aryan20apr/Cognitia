@@ -38,6 +38,7 @@ public class RefreshToken {
     private Boolean revoked;
     private UUID replacedBy;
     private Date lastUsedAt;
+    private Date expiresAt;
 
     
 }

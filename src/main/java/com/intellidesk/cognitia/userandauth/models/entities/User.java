@@ -51,6 +51,8 @@ public class User extends TenantAwareEntity {
 
     private String phoneNumber;
 
+    private String password;
+
     @OneToMany(mappedBy = "user",cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private Set<RefreshToken> refreshTokens = new HashSet<>();
 

@@ -37,6 +37,9 @@ public class Role extends TenantAwareEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer roleId;
 
+    @Column(nullable = false)
+    private String roleName;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "role_permisson",
@@ -56,7 +59,7 @@ public class Role extends TenantAwareEntity {
 
     @Override
     public int hashCode() {
-        return Objects.hash(this.permissions);
+        return Objects.hash(this.roleId, this.roleName);
     }
 
     @Override
