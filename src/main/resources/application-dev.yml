@@ -91,8 +91,15 @@ ingestion:
 
 logging:
   level:
+    '[com.intellidesk.cognitia.userandauth]': DEBUG
     org:
+      apache:
+        kafka: OFF
+      aspectj:
+        weaver: DEBUG
       springframework:
+        aop: DEBUG
+        tools: DEBUG
         ai:
           chat:
             memory: DEBUG
@@ -103,3 +110,12 @@ logging:
 
 storage:
   cloudinary_url: ${CLOUDINARY_URL}
+
+jwt:
+  public-key:
+    path: ./public.pem
+  private-key:
+    path: ./private.pem  
+
+refresh:
+  secret: ${REFRESH_TOKEN_SECRET}

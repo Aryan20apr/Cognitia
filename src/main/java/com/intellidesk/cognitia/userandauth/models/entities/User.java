@@ -33,7 +33,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "users")
-@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = String.class))
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = UUID.class))
 @Filters(@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId"))
 public class User extends TenantAwareEntity {
     @Id
@@ -57,7 +57,8 @@ public class User extends TenantAwareEntity {
     private Set<RefreshToken> refreshTokens = new HashSet<>();
 
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY
+    )
     @JoinColumn(name = "role", referencedColumnName = "roleId")
     private Role role;
 
@@ -103,11 +104,6 @@ public class User extends TenantAwareEntity {
             if (other.phoneNumber != null)
                 return false;
         } else if (!phoneNumber.equals(other.phoneNumber))
-            return false;
-        if (role == null) {
-            if (other.role != null)
-                return false;
-        } else if (!role.equals(other.role))
             return false;
         return true;
     }
