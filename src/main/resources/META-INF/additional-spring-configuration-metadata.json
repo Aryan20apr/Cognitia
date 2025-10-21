@@ -1,5 +1,27 @@
-{"properties": [{
-  "name": "storage.cloudinary_url",
-  "type": "java.lang.String",
-  "description": "A description for 'storage.cloudinary_url'"
-}]}
+{"properties": [
+  {
+    "name": "storage.cloudinary_url",
+    "type": "java.lang.String",
+    "description": "A description for 'storage.cloudinary_url'"
+  },
+  {
+    "name": "refresh.sectet",
+    "type": "java.lang.String",
+    "description": "A description for 'refresh.sectet'"
+  },
+  {
+    "name": "jwt.public-key.path",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.public-key.path'"
+  },
+  {
+    "name": "jwt.private-key.path",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.private-key.path'"
+  },
+  {
+    "name": "refresh.secret",
+    "type": "java.lang.String",
+    "description": "A description for 'refresh.secret'"
+  }
+]}
