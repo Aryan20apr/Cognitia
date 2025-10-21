@@ -9,6 +9,7 @@ import java.util.UUID;
 
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.intellidesk.cognitia.userandauth.models.dtos.TokenPair;
 import com.intellidesk.cognitia.userandauth.models.entities.RefreshToken;
@@ -16,11 +17,14 @@ import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.repository.RefreshTokenRepository;
 import com.intellidesk.cognitia.utils.exceptionHandling.InvalidTokenException;
 
-import jakarta.transaction.Transactional;
+
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
+@Slf4j
 public class RefreshTokenService {
 
 
@@ -35,7 +39,6 @@ public class RefreshTokenService {
         String hash = hasher.hash(raw);
 
         RefreshToken r = new RefreshToken();
-        r.setId(UUID.randomUUID());
         r.setTokenHash(hash);
         r.setUser(user);
         r.setCreatedAt(new Date());
@@ -61,7 +64,6 @@ public class RefreshTokenService {
         // mark old revoked and create new
         old.setRevoked(true);
         RefreshToken created = new RefreshToken();
-        created.setId(UUID.randomUUID());
         String newRaw = newTokenValue();
         created.setTokenHash(hasher.hash(newRaw));
         created.setUser(old.getUser());
@@ -89,7 +91,10 @@ public class RefreshTokenService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(b);
     }
 
-    public Integer revokeByRaw(String tokenHash){
+    @Transactional
+    public Integer revokeByRaw(String rawToken){
+        String tokenHash = hasher.hash(rawToken);
+        log.info("[revokeByRaw] tokenHash: "+tokenHash);
         return repo.revokeToken(tokenHash);
     }
 }

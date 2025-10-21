@@ -9,7 +9,7 @@ public interface TenantService {
 
     public Boolean checkIfExists(String tenantId);
     
-    public Tenant createTenant(TenantDTO tenantDTO);
+    public TenantDTO createTenant(TenantDTO tenantDTO);
 
     public Tenant getTenant(String companyId);
 
