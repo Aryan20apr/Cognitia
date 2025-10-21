@@ -23,14 +23,20 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "roles")
+@Builder
 @Filters(@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId"))
+@AllArgsConstructor
+@NoArgsConstructor
 public class Role extends TenantAwareEntity {
     
     @Id

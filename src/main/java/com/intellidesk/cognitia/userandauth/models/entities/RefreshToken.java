@@ -3,6 +3,11 @@ package com.intellidesk.cognitia.userandauth.models.entities;
 import java.util.Date;
 import java.util.UUID;
 
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -33,11 +38,20 @@ public class RefreshToken {
 
     private String userAgent;
 
+    @CreatedDate
+    @CreationTimestamp
     private Date createdAt;
+
+    @LastModifiedDate
+    @UpdateTimestamp
     private Date updatedAt;
+    
     private Boolean revoked;
+    
     private UUID replacedBy;
+    
     private Date lastUsedAt;
+    
     private Date expiresAt;
 
     

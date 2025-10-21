@@ -17,6 +17,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -45,6 +46,9 @@ public class Tenant {
     private String domain;
 
     private String contactEmail;
+    
+    @OneToOne
+    private User rootUser;
 
     @OneToMany(mappedBy = "tenant")
     private Set<User> users = new HashSet<>();
