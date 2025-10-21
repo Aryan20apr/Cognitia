@@ -34,7 +34,7 @@ public class TenantInterceptor implements HandlerInterceptor {
             if (session != null) {
                 log.info("[TenantInterceptor] [preHandle] Inside preHandle, enabling tenant filter for tenant id: "+tenantId);
                 session.enableFilter("tenantFilter")
-                        .setParameter("tenantId", tenantId.toString());
+                        .setParameter("tenantId", tenantId);
             }
         }
 
