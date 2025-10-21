@@ -14,7 +14,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.intellidesk.cognitia.userandauth.security.JwtAuthenticationEntryPoint;
 import com.intellidesk.cognitia.userandauth.security.JwtAuthenticationFilter;
+import com.intellidesk.cognitia.userandauth.security.JwtTenantFilter;
 import com.intellidesk.cognitia.userandauth.security.JwtTokenProvider;
 
 @Configuration
@@ -23,10 +25,14 @@ public class SecurityConfig {
 
     private final JwtTokenProvider jwtProvider;
     private final UserDetailsService userSDetailsService;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtTenantFilter jwtTenantFilter;
 
-    public SecurityConfig(JwtTokenProvider jwtProvider, UserDetailsService userDetailsService) {
+    public SecurityConfig(JwtTokenProvider jwtProvider, UserDetailsService userDetailsService,JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint, JwtTenantFilter jwtTenantFilter) {
         this.jwtProvider = jwtProvider;
         this.userSDetailsService = userDetailsService;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
+        this.jwtTenantFilter = jwtTenantFilter;
     }
 
     @Bean
@@ -37,8 +43,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**", "/public/**", "/api/tenants/create").permitAll()
                 .anyRequest().authenticated())
-            .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userSDetailsService), UsernamePasswordAuthenticationFilter.class);
-
+            .exceptionHandling(e -> e.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+            .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userSDetailsService), UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(jwtTenantFilter, UsernamePasswordAuthenticationFilter.class);
+            
             http.authenticationProvider(authenticationProvider());
 
         return http.build();

@@ -32,7 +32,7 @@ public class JwtTokenProvider {
     
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
-    private final long accessTokenMs = Duration.ofMinutes(15).toMillis();
+    private final long accessTokenMs = Duration.ofMinutes(60).toMillis();
     private final String issuer = "my-monolith";
 
     public JwtTokenProvider(@Value("${jwt.private-key.path}") String privKeyPath,
