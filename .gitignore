@@ -36,3 +36,5 @@ build/
 
 secrets*.yml
 output.json
+*.pem
+

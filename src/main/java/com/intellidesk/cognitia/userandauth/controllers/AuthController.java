@@ -14,12 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.userandauth.models.dtos.LoginRequestDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.LoginResponseDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.TokenPair;
+import com.intellidesk.cognitia.userandauth.models.dtos.UserDetailsDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.repository.UserRepository;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
 import com.intellidesk.cognitia.userandauth.security.JwtTokenProvider;
 import com.intellidesk.cognitia.userandauth.security.RefreshTokenService;
+import com.intellidesk.cognitia.utils.Utils;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,8 +46,11 @@ public class AuthController {
         String access = jwtProvider.createAccessToken(user);
         String rawRefresh = refreshService.createRefreshToken(user, req.getDeviceId(), req.getIp(), req.getUserAgent());
         setRefreshCookie(response, rawRefresh);
-
-        return ResponseEntity.ok(Map.of("accessToken", access));
+        LoginResponseDTO loginResponseDTO = new LoginResponseDTO();
+        loginResponseDTO.setAccessToken(access);
+        UserDetailsDTO userDetailsDTO = Utils.mapToUserDetailsDTO(user);
+        loginResponseDTO.setUserDetailsDTO(userDetailsDTO);
+        return ResponseEntity.ok(loginResponseDTO);
     }
 
     @PostMapping("/refresh")

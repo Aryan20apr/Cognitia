@@ -1,7 +1,6 @@
 package com.intellidesk.cognitia.userandauth.controllers;
 
 import java.util.List;
-import java.util.Set;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,10 +26,10 @@ public class TenantController {
 
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Tenant>> createCompany(@RequestBody TenantDTO tenantDTO){
+    public ResponseEntity<ApiResponse<TenantDTO>> createCompany(@RequestBody TenantDTO tenantDTO){
 
-       Tenant tenant = tenantService.createTenant(tenantDTO);
-       ApiResponse<Tenant> apiResponse = new ApiResponse<>("Tenant created successfully", true, tenant);
+       TenantDTO tenant = tenantService.createTenant(tenantDTO);
+       ApiResponse<TenantDTO> apiResponse = new ApiResponse<>("Tenant created successfully", true, tenant);
        return new ResponseEntity<>(apiResponse, HttpStatus.CREATED);
     }
 
