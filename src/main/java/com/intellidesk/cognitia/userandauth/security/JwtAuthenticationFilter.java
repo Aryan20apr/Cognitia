@@ -16,7 +16,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -98,6 +100,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 String tenantId = jwtTokenProvider.getTenantFromToken(token);
                 if (tenantId != null) {
+                    log.info("[JwtAuthenticationFilter] [doFilterInternal] Setting tenant context for tenantId: {}", tenantId);
                     TenantContext.setTenantId(UUID.fromString(tenantId));
                 }
             }

@@ -1,17 +1,16 @@
 package com.intellidesk.cognitia.userandauth.models.dtos;
 
-import java.util.Set;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class RoleCreationDTO {
-
-    Integer roleId;
+@ToString
+public class PermissionDTO {
+    
+    Integer id;
     String name;
-    Set<PermissionDTO> permissions; 
 }

@@ -16,19 +16,21 @@ import com.intellidesk.cognitia.userandauth.models.entities.Role;
 import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.models.entities.enums.RoleEnum;
+import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.repository.PermissionsRepository;
 import com.intellidesk.cognitia.userandauth.repository.RoleRepository;
 import com.intellidesk.cognitia.userandauth.repository.TenantRepository;
 import com.intellidesk.cognitia.userandauth.repository.UserRepository;
-import com.intellidesk.cognitia.userandauth.repository.UserRepositoryImpl;
 import com.intellidesk.cognitia.userandauth.services.UserService;
 import com.intellidesk.cognitia.utils.Utils;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @AllArgsConstructor
 public class UserServiceImpl implements UserService {
 
@@ -47,20 +49,35 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDetailsDTO createUser(UserCreationDTO userCreationDTO) {
+        // Log the incoming UserCreationDTO for auditing/diagnostics
+       
+        log.info("[UserServiceImpl] [createUser] UserCreationDTO received: {}", userCreationDTO);
         User user = new User();
-        Optional<Tenant> tenant = tenantRepository.findById(UUID.fromString(userCreationDTO.companyId()));
+        UUID companyId = TenantContext.getTenantId();
+        if (companyId == null) {
+            // Fallback to value from DTO
+            if (userCreationDTO.companyId() == null) {
+                throw new ApiException("Company Id not provided");
+            }
+            companyId = UUID.fromString(userCreationDTO.companyId());
+        }
+        Optional<Tenant> tenant = tenantRepository.findById(companyId);
         if (tenant.isEmpty()) {
             throw new ApiException("Company does not exist with the provided id", userCreationDTO.companyId());
         }
         Role role = new Role();
-        if (userCreationDTO.roleCreationDTO().name() == RoleEnum.SUPER_ADMIN.toString()) {
+        if (userCreationDTO.roleCreationDTO().getName() == RoleEnum.SUPER_ADMIN.toString()) {
             List<Permission> permissions = permissionsRepository.getSuperAdminPermissions();
             role.setPermissions(new HashSet<>(permissions));
-            role.setRoleName(userCreationDTO.roleCreationDTO().name());
+            role.setRoleName(userCreationDTO.roleCreationDTO().getName());
             role.setTenantId(tenant.get().getId());
             roleRepository.save(role);
         } else{
-
+           Optional<Role> optionalRole =  roleRepository.findById(userCreationDTO.roleCreationDTO().getRoleId());
+           if(optionalRole.isEmpty()){
+            throw new ApiException("Invalid role assigned");
+           }
+           role = optionalRole.get();
         }
         user.setRole(role);
         user.setEmail(userCreationDTO.email());
