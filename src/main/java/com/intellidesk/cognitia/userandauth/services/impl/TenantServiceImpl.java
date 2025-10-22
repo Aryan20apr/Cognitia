@@ -47,14 +47,15 @@ public class TenantServiceImpl implements TenantService {
                         .users(new HashSet<>())
                         .domain(tenantDTO.getDomain()).build();
         Tenant newTenant = tenantRepository.save(tenant);
-        
+        RoleCreationDTO roleCreationDTO = new RoleCreationDTO();
+        roleCreationDTO.setName(RoleEnum.SUPER_ADMIN.toString());
         UserCreationDTO userCreationDTO = new UserCreationDTO(
             tenantDTO.getAdminName(),
             tenantDTO.getAdminPassword(),
             tenantDTO.getAdminEmail(),
             newTenant.getId().toString(),
             tenantDTO.getPhoneNumber(),
-            new RoleCreationDTO(RoleEnum.SUPER_ADMIN.toString()));
+            roleCreationDTO);
         
         UserDetailsDTO user = userService.createUser(userCreationDTO);
         User tempUser = new User();
