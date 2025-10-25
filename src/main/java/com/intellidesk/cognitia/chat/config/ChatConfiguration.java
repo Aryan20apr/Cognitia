@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.intellidesk.cognitia.analytics.utils.TokenAnalyticsCallAdvisor;
+
 
 
 @Configuration
@@ -45,8 +47,8 @@ public class ChatConfiguration {
     // }
     
     @Bean
-    public ChatClient geminiChatClient(ChatModel chatModel, MessageChatMemoryAdvisor chatMemoryAdvisor) {
-        return ChatClient.builder(chatModel).defaultAdvisors(List.of(chatMemoryAdvisor,new SimpleLoggerAdvisor())).build();
+    public ChatClient geminiChatClient(ChatModel chatModel, MessageChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsCallAdvisor tokenAnalyticsCallAdvisor) {
+        return ChatClient.builder(chatModel).defaultAdvisors(List.of(tokenAnalyticsCallAdvisor ,chatMemoryAdvisor,new SimpleLoggerAdvisor())).build();
         // return ChatClient.builder(chatModel).defaultAdvisors(List.of(new SimpleLoggerAdvisor())).build();
     }
 }
