@@ -6,11 +6,13 @@ import java.util.UUID;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.MessageType;
-import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.intellidesk.cognitia.chat.models.dtos.CustomChatResponse;
 import com.intellidesk.cognitia.chat.models.dtos.UserMessageDTO;
@@ -18,8 +20,10 @@ import com.intellidesk.cognitia.chat.models.entities.ChatMessage;
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.repository.ChatMessageRepository;
 import com.intellidesk.cognitia.chat.repository.ChatThreadRepository;
+import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
+import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
 
-import jakarta.transaction.Transactional;
+
 import lombok.AllArgsConstructor;
 
 @Service
@@ -30,7 +34,6 @@ public class ChatService {
     private final ChatThreadRepository threadRepository;
     private final ChatMessageRepository messageRepository;
     private final VectorStore vectorStore;
-    private final SimpleChatMemoryService simpleChatMemoryService;
     private final ChatMemoryHydrator chatMemoryHydrator;
 
 
@@ -38,7 +41,21 @@ public class ChatService {
     public CustomChatResponse processUserMessage(UserMessageDTO message){
 
         final UUID threadId =UUID.fromString( message.getThreadId());
-
+        
+        // Get current authenticated user ID
+        String userId = null;
+        
+        try {
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails) {
+                CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+                userId = userDetails.getUser().getId().toString();
+            }
+        } catch (Exception e) {
+            // Log warning but continue without userId
+            System.err.println("Could not extract userId from SecurityContext: " + e.getMessage());
+        }
+        final String resolvedUserId = userId;
         ChatThread thread = threadRepository.findById(threadId)
         .orElseThrow(() -> new RuntimeException("Thread not found"));
 
@@ -94,11 +111,17 @@ public class ChatService {
 
         // 5️⃣ Call the LLM
         CustomChatResponse customChatResponse = chatClient.prompt()
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, threadId.toString())) // Connect memory
+                .advisors(a -> {
+                    a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
+                    // Use thread.getUserId() if userId is not directly available
+                    a.param("userId", resolvedUserId != null ? resolvedUserId.toString() : "");
+                    a.param("tenantId", TenantContext.getTenantId().toString());
+                }) // Connect memory
                 .system(systemPrompt)
                 .user(fullPrompt)
                 .call()
                 .entity(CustomChatResponse.class);
+
     
             // 5️⃣ Save AI response
             ChatMessage aiMsg = ChatMessage.builder()
