@@ -119,3 +119,17 @@ jwt:
 
 refresh:
   secret: ${REFRESH_TOKEN_SECRET}
+
+
+tavily:
+  api:
+    key: ${TAVILY_API_KEY}
+    url: https://api.tavily.com/search
+    max_results: 3
+    topic: general
+    search_depth: basic
+    chunks_per_source: 3
+    include_answer: advanced
+    include_raw_content: true
+    include_images: false
+    include_favicon: false
