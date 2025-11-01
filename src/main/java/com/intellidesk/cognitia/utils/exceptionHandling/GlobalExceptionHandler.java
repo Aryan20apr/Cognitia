@@ -7,11 +7,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
 
+import lombok.extern.slf4j.Slf4j;
+
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ExceptionApiResponse<?>> handleAllRuntimeExcption(RuntimeException runtimeException) {
+        log.error("[GlobalExceptionHandler] : [handleAllRuntimeExcption] : " + runtimeException.getMessage());
         runtimeException.printStackTrace();
         ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
                 .message(runtimeException.getMessage())

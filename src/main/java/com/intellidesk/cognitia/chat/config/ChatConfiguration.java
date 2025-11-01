@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
-import org.springframework.ai.chat.client.advisor.api.BaseChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
@@ -14,13 +13,21 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.intellidesk.cognitia.analytics.utils.TokenAnalyticsAdvisor;
+import com.intellidesk.cognitia.chat.service.tools.DateTimeTool;
+import com.intellidesk.cognitia.chat.service.tools.WebSearchTool;
+
+import lombok.AllArgsConstructor;
+
 
 
 @Configuration
+@AllArgsConstructor
 public class ChatConfiguration {
 
 
-    
+    private WebSearchTool webSearchTool;
+    private DateTimeTool dateTimeTool;
 
     
     @Bean
@@ -45,8 +52,11 @@ public class ChatConfiguration {
     // }
     
     @Bean
-    public ChatClient geminiChatClient(ChatModel chatModel, MessageChatMemoryAdvisor chatMemoryAdvisor) {
-        return ChatClient.builder(chatModel).defaultAdvisors(List.of(chatMemoryAdvisor,new SimpleLoggerAdvisor())).build();
+    public ChatClient geminiChatClient(ChatModel chatModel, MessageChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsAdvisor tokenAnalyticsCallAdvisor) {
+        return ChatClient.builder(chatModel)
+            .defaultAdvisors(List.of(tokenAnalyticsCallAdvisor ,chatMemoryAdvisor,new SimpleLoggerAdvisor()))
+            .defaultTools(webSearchTool, dateTimeTool)
+            .build();
         // return ChatClient.builder(chatModel).defaultAdvisors(List.of(new SimpleLoggerAdvisor())).build();
     }
 }
