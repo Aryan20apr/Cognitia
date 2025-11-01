@@ -101,12 +101,15 @@ logging:
         aop: DEBUG
         tools: DEBUG
         ai:
+          client:
+            chat: DEBUG
+          tool: DEBUG
+          observation: DEBUG
           chat:
             memory: DEBUG
             client:
               advisor: DEBUG
               ChatMemoryAdvisor: DEBUG
-
 
 storage:
   cloudinary_url: ${CLOUDINARY_URL}
