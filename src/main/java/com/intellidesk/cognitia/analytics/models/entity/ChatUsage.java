@@ -11,32 +11,36 @@ import org.springframework.data.annotation.LastModifiedDate;
 
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
+import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "chat_usage")
 @Builder
 @Setter
 @Getter
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatUsage {
+@Table(name = "chat_usage_event", indexes = {
+        @Index(name = "idx_cue_tenant", columnList = "tenant_id"),
+        @Index(name = "idx_cue_user", columnList = "user_id"),
+        @Index(name = "idx_cue_request", columnList = "request_id")
+})
+public class ChatUsage extends TenantAwareEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name= "request_id", unique=true, nullable=false)
+    private String requestId;
+
     @ManyToOne
     @JoinColumn(name="user_id", referencedColumnName = "id")
     private User user;
-    
-    @ManyToOne
-    @JoinColumn(name = "teant_id", referencedColumnName = "id")
-    private Tenant tenant;
 
     @ManyToOne
     @JoinColumn(name = "thread_id", referencedColumnName = "id")
@@ -46,14 +50,19 @@ public class ChatUsage {
     private Long completionTokens;  
     private Long totalTokens;       // total = prompt + completion
 
+    private Boolean isProcessed;
     
     private Double estimatedCost;
 
     
     private String modelName;
 
+    private String metaDataJson;
+
     
     private Long latencyMs; // time taken for model response
+
+    private Date processedAt;
 
     @CreationTimestamp
     @CreatedDate
@@ -67,15 +76,17 @@ public class ChatUsage {
     public int hashCode() {
         final int prime = 31;
         int result = 1;
+        result = prime * result + ((requestId == null) ? 0 : requestId.hashCode());
         result = prime * result + ((user == null) ? 0 : user.hashCode());
-        result = prime * result + ((tenant == null) ? 0 : tenant.hashCode());
         result = prime * result + ((thread == null) ? 0 : thread.hashCode());
         result = prime * result + ((promptTokens == null) ? 0 : promptTokens.hashCode());
         result = prime * result + ((completionTokens == null) ? 0 : completionTokens.hashCode());
         result = prime * result + ((totalTokens == null) ? 0 : totalTokens.hashCode());
+        result = prime * result + ((isProcessed == null) ? 0 : isProcessed.hashCode());
         result = prime * result + ((estimatedCost == null) ? 0 : estimatedCost.hashCode());
         result = prime * result + ((modelName == null) ? 0 : modelName.hashCode());
         result = prime * result + ((latencyMs == null) ? 0 : latencyMs.hashCode());
+        result = prime * result + ((processedAt == null) ? 0 : processedAt.hashCode());
         return result;
     }
 
@@ -88,15 +99,15 @@ public class ChatUsage {
         if (getClass() != obj.getClass())
             return false;
         ChatUsage other = (ChatUsage) obj;
+        if (requestId == null) {
+            if (other.requestId != null)
+                return false;
+        } else if (!requestId.equals(other.requestId))
+            return false;
         if (user == null) {
             if (other.user != null)
                 return false;
         } else if (!user.equals(other.user))
-            return false;
-        if (tenant == null) {
-            if (other.tenant != null)
-                return false;
-        } else if (!tenant.equals(other.tenant))
             return false;
         if (thread == null) {
             if (other.thread != null)
@@ -118,6 +129,11 @@ public class ChatUsage {
                 return false;
         } else if (!totalTokens.equals(other.totalTokens))
             return false;
+        if (isProcessed == null) {
+            if (other.isProcessed != null)
+                return false;
+        } else if (!isProcessed.equals(other.isProcessed))
+            return false;
         if (estimatedCost == null) {
             if (other.estimatedCost != null)
                 return false;
@@ -133,11 +149,14 @@ public class ChatUsage {
                 return false;
         } else if (!latencyMs.equals(other.latencyMs))
             return false;
+        if (processedAt == null) {
+            if (other.processedAt != null)
+                return false;
+        } else if (!processedAt.equals(other.processedAt))
+            return false;
         return true;
     }
 
-
-
     
-}
 
+}
