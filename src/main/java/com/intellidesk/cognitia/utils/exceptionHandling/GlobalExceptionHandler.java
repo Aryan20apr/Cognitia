@@ -1,5 +1,9 @@
 package com.intellidesk.cognitia.utils.exceptionHandling;
 
+import java.time.Instant;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -50,5 +54,16 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(500).body(response);
 
+    }
+
+    
+    @ExceptionHandler(QuotaExceededException.class)
+    public ResponseEntity<?> handleQuotaExceeded(QuotaExceededException ex) {
+        Map<String,Object> body = Map.of(
+                "error", "quota_exceeded",
+                "message", ex.getMessage(),
+                "timestamp", Instant.now()
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
     }
 }
