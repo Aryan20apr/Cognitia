@@ -81,6 +81,13 @@ ingestion:
   partitions: ${INGESTION_PARTITIONS:1}
   replicas: ${INGESTION_REPLICAS:1}
 
+analytics:
+  usage-events:
+    group:
+      name: ${USAGE_EVENTS_GROUP_NAME:usage-events-group}
+    topic:
+      name: ${USAGE_EVENTS_TOPIC_NAME:chat-usage-events}  
+
 # Kafka Configuration
 # logging.level.org.apache.kafka.clients.consumer.internals.ConsumerCoordinator=DEBUG
 # logging.level.org.apache.kafka.clients.consumer=DEBUG
