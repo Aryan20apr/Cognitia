@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.intellidesk.cognitia.analytics.utils.IdempotencyCallAdvisor;
 import com.intellidesk.cognitia.analytics.utils.QuotaEnforcementAdvisor;
 import com.intellidesk.cognitia.analytics.utils.TokenAnalyticsAdvisor;
 import com.intellidesk.cognitia.analytics.utils.TokenAnalyticsAdvisorV2;
@@ -54,9 +55,9 @@ public class ChatConfiguration {
     // }
     
     @Bean
-    public ChatClient geminiChatClient(ChatModel chatModel, QuotaEnforcementAdvisor quotaEnforcementAdvisor, MessageChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsAdvisorV2 tokenAnalyticsCallAdvisor) {
+    public ChatClient geminiChatClient(ChatModel chatModel,  IdempotencyCallAdvisor idempotencyCallAdvisor, QuotaEnforcementAdvisor quotaEnforcementAdvisor, MessageChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsAdvisorV2 tokenAnalyticsCallAdvisor) {
         return ChatClient.builder(chatModel)
-            .defaultAdvisors(List.of(quotaEnforcementAdvisor, chatMemoryAdvisor,tokenAnalyticsCallAdvisor, new SimpleLoggerAdvisor()))
+            .defaultAdvisors(List.of(idempotencyCallAdvisor,quotaEnforcementAdvisor, chatMemoryAdvisor,tokenAnalyticsCallAdvisor, new SimpleLoggerAdvisor()))
             .defaultTools(webSearchTool, dateTimeTool)
             .build();
         // return ChatClient.builder(chatModel).defaultAdvisors(List.of(new SimpleLoggerAdvisor())).build();

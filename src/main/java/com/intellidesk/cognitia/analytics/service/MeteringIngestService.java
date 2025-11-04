@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MeteringIngestService {
 
-    private final RequestIdGuard requestIdGuard;
+    // private final RequestIdGuard requestIdGuard;
     private final RedisCounterService redisCounterService;
     private final ChatUsageService chatUsageService;
     private final UsageEventProducer usageEventProducer;
@@ -29,10 +29,10 @@ public class MeteringIngestService {
     public void recordUsage(UUID tenantId, UUID userId, UUID threadId, String requestId,
                             String modelName, Long promptTokens, Long completionTokens, Long totalTokens, String metadataJson) {
 
-        if (requestId != null && !requestIdGuard.acquire(requestId)) {
-            // already processed
-            return;
-        }
+        // if (requestId != null && !requestIdGuard.acquire(requestId)) {
+        //     // already processed
+        //     return;
+        // }
         if(totalTokens == null){
              totalTokens =   (promptTokens == null ? 0L : promptTokens) + (completionTokens == null ? 0L : completionTokens); }
         User user = new User();

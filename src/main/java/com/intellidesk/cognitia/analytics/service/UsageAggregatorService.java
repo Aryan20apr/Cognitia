@@ -16,9 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class UsageAggregatorService {
 
-    private final ObjectMapper objectMapper;
+
     private final ChatUsageRepository eventRepository;
     private final QuotaService quotaService;
+    private final RedisIdempotencyService redisIdempotencyService;
     // Optionally, inject billingService if immediate invoice generation is needed
 
     /**
@@ -42,7 +43,10 @@ public class UsageAggregatorService {
             quotaService.recordUsage(
                event
             );
-
+            // 2) mark processed in redis to allow quick duplicate detection on new requests
+            if (event.getRequestId() != null) {
+                redisIdempotencyService.markProcessed(event.getRequestId());
+            }
             // Optionally push to Billing service for immediate or deferred invoice update
             // billingService.updateInvoiceAsync(event);
 

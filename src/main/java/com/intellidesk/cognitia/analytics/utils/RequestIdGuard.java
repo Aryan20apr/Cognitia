@@ -6,7 +6,7 @@ import com.intellidesk.cognitia.analytics.service.RedisCounterService;
 
 import java.time.Duration;
 
-@Component
+// @Component
 public class RequestIdGuard {
 
     private final RedisCounterService redisCounterService;
