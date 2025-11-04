@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
-import com.intellidesk.cognitia.analytics.utils.RequestIdGuard;
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
@@ -17,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MeteringIngestService {
 
-    // private final RequestIdGuard requestIdGuard;
     private final RedisCounterService redisCounterService;
     private final ChatUsageService chatUsageService;
     private final UsageEventProducer usageEventProducer;
@@ -28,11 +26,7 @@ public class MeteringIngestService {
     @Transactional
     public void recordUsage(UUID tenantId, UUID userId, UUID threadId, String requestId,
                             String modelName, Long promptTokens, Long completionTokens, Long totalTokens, String metadataJson) {
-
-        // if (requestId != null && !requestIdGuard.acquire(requestId)) {
-        //     // already processed
-        //     return;
-        // }
+                                
         if(totalTokens == null){
              totalTokens =   (promptTokens == null ? 0L : promptTokens) + (completionTokens == null ? 0L : completionTokens); }
         User user = new User();
