@@ -66,4 +66,25 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
     }
+
+     @ExceptionHandler(DuplicateRequestInProgressException.class)
+    public ResponseEntity<?> handleInProgress(DuplicateRequestInProgressException ex) {
+        Map<String, Object> body = Map.of(
+                "error", "request_in_progress",
+                "message", ex.getMessage(),
+                "timestamp", Instant.now()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body); // 409
+    }
+
+    @ExceptionHandler(DuplicateRequestAlreadyProcessedException.class)
+    public ResponseEntity<?> handleAlreadyProcessed(DuplicateRequestAlreadyProcessedException ex) {
+        Map<String,Object> body = Map.of(
+                "error","request_already_processed",
+                "message",ex.getMessage(),
+                "timestamp", Instant.now()
+        );
+        // 200 OK or 409; choose 409 conflict to indicate duplicate — or return cached response if available
+        return ResponseEntity.status(HttpStatus.OK).body(body);
+    }
 }
