@@ -1,6 +1,5 @@
 package com.intellidesk.cognitia.analytics.service.impl;
 
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,7 +34,8 @@ import com.intellidesk.cognitia.analytics.utils.TenantQuotaMapper;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Minimal example implementation — adapt to your TenantQuota DB model and Plan pricing
+ * Minimal example implementation — adapt to your TenantQuota DB model and Plan
+ * pricing
  */
 @Service
 @RequiredArgsConstructor
@@ -44,12 +44,11 @@ public class QuotaServiceImpl implements QuotaService {
     private final RedisCounterService redisCounterService;
     private final TenantQuotaRepository tenantQuotaRepository;
     private final UserQuotaRepository userQuotaRepository;
-    private final ChatUsageService chatUsageService;     
+    private final ChatUsageService chatUsageService;
     private final ChatUsageRepository chatUsageRepository;
     private final AggregatedUsageRepository aggregatedUsageRepository;
     private final PlanRepository planRepository;
     private final TenantQuotaMapper mapper;
-
 
     @Override
     @Transactional
@@ -86,12 +85,13 @@ public class QuotaServiceImpl implements QuotaService {
     @Override
     @Transactional
     public void recordUsage(ChatUsageDetailsDTO chatUsageDetailsDTO) {
-        
+
         UUID tenantId = chatUsageDetailsDTO.getTenantId();
-        
+
         String requestId = chatUsageDetailsDTO.getRequestId();
-        if(chatUsageDetailsDTO.getRequestId() != null){
-            Optional<ChatUsageDetailsDTO> existing = chatUsageService.findByRequestId(chatUsageDetailsDTO.getRequestId());
+        if (chatUsageDetailsDTO.getRequestId() != null) {
+            Optional<ChatUsageDetailsDTO> existing = chatUsageService
+                    .findByRequestId(chatUsageDetailsDTO.getRequestId());
             if (existing.isPresent() && Boolean.TRUE.equals(existing.get().getIsProcessed())) {
                 // already processed for quota updates
                 return;
@@ -104,14 +104,16 @@ public class QuotaServiceImpl implements QuotaService {
         // Determine billing period start (for example, first day of month)
         LocalDate periodStart = YearMonth.now().atDay(1); // adapt to tenant timezone / billing cycle
 
-        // 2) Atomically increment tenant quota counters in DB (via repository @Modifying)
+        // 2) Atomically increment tenant quota counters in DB (via repository
+        // @Modifying)
         int updatedRows = tenantQuotaRepository.incrementUsedTokens(
                 tenantId,
                 periodStart,
                 p, c, total, 0); // resources = 0 in token-only event
 
         if (updatedRows == 0) {
-            // maybe no active row found — fallback: create a new TenantQuota record or throw
+            // maybe no active row found — fallback: create a new TenantQuota record or
+            // throw
             // For resiliency, try to fetch and create a new row
             TenantQuota tq = tenantQuotaRepository.findActiveQuotaByTenant(tenantId)
                     .orElseGet(() -> {
@@ -128,7 +130,8 @@ public class QuotaServiceImpl implements QuotaService {
 
         // 3) Atomically increment user quota counters if user quota exists
         if (chatUsageDetailsDTO.getUserId() != null) {
-            int userUpdated = userQuotaRepository.incrementUsedTokens(chatUsageDetailsDTO.getUserId(), periodStart, p, c, total, 0);
+            int userUpdated = userQuotaRepository.incrementUsedTokens(chatUsageDetailsDTO.getUserId(), periodStart, p,
+                    c, total, 0);
             // if userUpdated == 0, user quota not configured; it's OK
         }
 
@@ -144,8 +147,10 @@ public class QuotaServiceImpl implements QuotaService {
         // 5) Update aggregated usage (durable snapshot) for the tenant — optional
         aggregatedUsageRepository.findByTenantIdAndPeriodStart(tenantId, periodStart)
                 .ifPresentOrElse(agg -> {
-                    agg.setTotalPromptTokens((agg.getTotalPromptTokens() == null ? 0L : agg.getTotalPromptTokens()) + p);
-                    agg.setTotalCompletionTokens((agg.getTotalCompletionTokens() == null ? 0L : agg.getTotalCompletionTokens()) + c);
+                    agg.setTotalPromptTokens(
+                            (agg.getTotalPromptTokens() == null ? 0L : agg.getTotalPromptTokens()) + p);
+                    agg.setTotalCompletionTokens(
+                            (agg.getTotalCompletionTokens() == null ? 0L : agg.getTotalCompletionTokens()) + c);
                     agg.setTotalTokens((agg.getTotalTokens() == null ? 0L : agg.getTotalTokens()) + total);
                     aggregatedUsageRepository.save(agg);
                 }, () -> {
@@ -172,8 +177,8 @@ public class QuotaServiceImpl implements QuotaService {
             t.setOverageCharges(overageChargeAmount);
             tenantQuotaRepository.save(t);
         }
-    
-}
+
+    }
 
     @Override
     @Transactional
@@ -181,7 +186,8 @@ public class QuotaServiceImpl implements QuotaService {
         // Load tenant plan settings; default to HYBRID
         TenantQuota t = tenantQuotaRepository.findActiveQuotaByTenant(tenantId)
                 .orElse(null);
-        if (t == null) return EnforcementMode.HYBRID;
+        if (t == null)
+            return EnforcementMode.HYBRID;
         // Map your DB field to mode. For example, a column enforcement_mode
         // For prototype, return HYBRID
         return EnforcementMode.HYBRID;
@@ -235,7 +241,7 @@ public class QuotaServiceImpl implements QuotaService {
 
         TenantQuota quota = tenantQuotaRepository.findByTenantId(tenantId)
                 .orElseGet(() -> TenantQuota.builder()
-                       
+
                         .status(QuotaStatus.ACTIVE)
                         .build());
         quota.setTenantId(tenantId);
@@ -265,7 +271,7 @@ public class QuotaServiceImpl implements QuotaService {
     public TenantQuotaDTO provisionQuota(UUID tenantId, QuotaProvisionRequest request) {
         TenantQuota quota = tenantQuotaRepository.findByTenantId(tenantId)
                 .orElseGet(() -> TenantQuota.builder()
-                        
+
                         .status(QuotaStatus.ACTIVE)
                         .build());
         quota.setTenantId(tenantId);
@@ -280,4 +286,56 @@ public class QuotaServiceImpl implements QuotaService {
         TenantQuota saved = tenantQuotaRepository.save(quota);
         return mapper.toDto(saved);
     }
+
+    @Override
+    @Transactional
+    public void renewQuotaCycle(UUID tenantId) {
+        TenantQuota quota = tenantQuotaRepository.findByTenantId(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant quota not found"));
+
+        LocalDate today = LocalDate.now();
+
+        // 1️⃣ Check if billing cycle has ended
+        if (quota.getBillingCycleEnd() != null && !today.isAfter(quota.getBillingCycleEnd())) {
+            return; // Still within active period — skip
+        }
+
+        // 2️⃣ Reset usage counters
+        quota.setUsedPromptTokens(0L);
+        quota.setUsedCompletionTokens(0L);
+        quota.setUsedTotalTokens(0L);
+        quota.setUsedResources(0);
+        quota.setUsedUsers(0);
+        quota.setThreshold80Notified(false);
+        quota.setThreshold100Notified(false);
+        quota.setOverageTokens(0L);
+        quota.setOverageCharges(null);
+
+        // 3️⃣ Advance billing cycle window
+        LocalDate newStart = quota.getBillingCycleEnd() != null
+                ? quota.getBillingCycleEnd().plusDays(1)
+                : today;
+        LocalDate newEnd = newStart.plusMonths(1).minusDays(1);
+        quota.setBillingCycleStart(newStart);
+        quota.setBillingCycleEnd(newEnd);
+
+        // 4️⃣ Optionally update plan quotas (if plan changed or dynamic)
+        if (quota.getPlanId() != null) {
+            Plan plan = quota.getPlanId();
+            quota.setMaxPromptTokens(plan.getIncludedPromptTokens());
+            quota.setMaxCompletionTokens(plan.getIncludedCompletionTokens());
+            quota.setMaxTotalTokens(plan.getIncludedTotalTokens());
+            quota.setMaxResources(plan.getIncludedDocs() != null ? plan.getIncludedDocs().intValue() : null);
+            quota.setMaxUsers(plan.getIncludedUsers() != null ? plan.getIncludedUsers().intValue() : null);
+        }
+
+        // 5️⃣ Update reset time
+        quota.setLastResetAt(java.time.Instant.now());
+
+        tenantQuotaRepository.save(quota);
+
+        // 6️⃣ Emit a billing event (optional)
+        // billingService.generateInvoiceForTenant(tenantId);
+    }
+
 }

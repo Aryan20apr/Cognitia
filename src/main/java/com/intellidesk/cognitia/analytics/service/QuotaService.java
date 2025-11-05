@@ -30,5 +30,7 @@ public interface QuotaService {
     TenantQuotaDTO assignPlan(UUID tenantId, AssignPlanRequest request);
 
     TenantQuotaDTO provisionQuota(UUID tenantId, QuotaProvisionRequest request);
+
+    void renewQuotaCycle(UUID tenantId);
 }
 
