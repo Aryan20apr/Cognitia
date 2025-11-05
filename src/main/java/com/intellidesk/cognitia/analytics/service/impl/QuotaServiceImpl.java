@@ -1,4 +1,4 @@
-package com.intellidesk.cognitia.analytics.service;
+package com.intellidesk.cognitia.analytics.service.impl;
 
 
 import java.math.BigDecimal;
@@ -12,15 +12,25 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.intellidesk.cognitia.analytics.models.dto.AssignPlanRequest;
 import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
+import com.intellidesk.cognitia.analytics.models.dto.QuotaProvisionRequest;
+import com.intellidesk.cognitia.analytics.models.dto.TenantQuotaDTO;
 import com.intellidesk.cognitia.analytics.models.entity.AggregatedUsage;
+import com.intellidesk.cognitia.analytics.models.entity.Plan;
 import com.intellidesk.cognitia.analytics.models.entity.TenantQuota;
 import com.intellidesk.cognitia.analytics.models.entity.UserQuota;
 import com.intellidesk.cognitia.analytics.models.enums.EnforcementMode;
+import com.intellidesk.cognitia.analytics.models.enums.QuotaStatus;
 import com.intellidesk.cognitia.analytics.repository.AggregatedUsageRepository;
 import com.intellidesk.cognitia.analytics.repository.ChatUsageRepository;
+import com.intellidesk.cognitia.analytics.repository.PlanRepository;
 import com.intellidesk.cognitia.analytics.repository.TenantQuotaRepository;
 import com.intellidesk.cognitia.analytics.repository.UserQuotaRepository;
+import com.intellidesk.cognitia.analytics.service.ChatUsageService;
+import com.intellidesk.cognitia.analytics.service.QuotaService;
+import com.intellidesk.cognitia.analytics.service.RedisCounterService;
+import com.intellidesk.cognitia.analytics.utils.TenantQuotaMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -37,6 +47,8 @@ public class QuotaServiceImpl implements QuotaService {
     private final ChatUsageService chatUsageService;     
     private final ChatUsageRepository chatUsageRepository;
     private final AggregatedUsageRepository aggregatedUsageRepository;
+    private final PlanRepository planRepository;
+    private final TenantQuotaMapper mapper;
 
 
     @Override
@@ -209,9 +221,63 @@ public class QuotaServiceImpl implements QuotaService {
     }
 
     @Override
-    public void provisionTenantQuota(UUID tenantId) {
-        // Implementation to create/modify TenantQuota record goes here
-        // This is an admin function: create new TenantQuota row, set planId, limits
+    @Transactional(readOnly = true)
+    public TenantQuotaDTO getTenantQuota(UUID tenantId) {
+        TenantQuota quota = tenantQuotaRepository.findByTenantId(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant quota not found"));
+        return mapper.toDto(quota);
+    }
+
+    @Override
+    public TenantQuotaDTO assignPlan(UUID tenantId, AssignPlanRequest request) {
+        Plan plan = planRepository.findById(request.getPlanId())
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found"));
+
+        TenantQuota quota = tenantQuotaRepository.findByTenantId(tenantId)
+                .orElseGet(() -> TenantQuota.builder()
+                       
+                        .status(QuotaStatus.ACTIVE)
+                        .build());
+        quota.setTenantId(tenantId);
+        quota.setPlanId(plan);
+        quota.setBillingCycleStart(LocalDate.now());
+        quota.setBillingCycleEnd(LocalDate.now().plusMonths(1).minusDays(1));
+
+        quota.setMaxPromptTokens(plan.getIncludedPromptTokens());
+        quota.setMaxCompletionTokens(plan.getIncludedCompletionTokens());
+        quota.setMaxTotalTokens(plan.getIncludedTotalTokens());
+        quota.setMaxResources(plan.getIncludedDocs() != null ? plan.getIncludedDocs().intValue() : null);
+        quota.setMaxUsers(plan.getIncludedUsers() != null ? plan.getIncludedUsers().intValue() : null);
+
+        if (request.isResetUsage()) {
+            quota.setUsedPromptTokens(0L);
+            quota.setUsedCompletionTokens(0L);
+            quota.setUsedTotalTokens(0L);
+            quota.setUsedResources(0);
+            quota.setUsedUsers(0);
+        }
+
+        TenantQuota saved = tenantQuotaRepository.save(quota);
+        return mapper.toDto(saved);
+    }
+
+    @Override
+    public TenantQuotaDTO provisionQuota(UUID tenantId, QuotaProvisionRequest request) {
+        TenantQuota quota = tenantQuotaRepository.findByTenantId(tenantId)
+                .orElseGet(() -> TenantQuota.builder()
+                        
+                        .status(QuotaStatus.ACTIVE)
+                        .build());
+        quota.setTenantId(tenantId);
+        quota.setMaxPromptTokens(request.getMaxPromptTokens());
+        quota.setMaxCompletionTokens(request.getMaxCompletionTokens());
+        quota.setMaxTotalTokens(request.getMaxTotalTokens());
+        quota.setMaxResources(request.getMaxResources());
+        quota.setMaxUsers(request.getMaxUsers());
+        if (request.getEnforcementMode() != null)
+            quota.setEnforcementMode(request.getEnforcementMode());
+
+        TenantQuota saved = tenantQuotaRepository.save(quota);
+        return mapper.toDto(saved);
     }
 }
-

@@ -3,7 +3,10 @@ package com.intellidesk.cognitia.analytics.service;
 
 import java.util.UUID;
 
+import com.intellidesk.cognitia.analytics.models.dto.AssignPlanRequest;
 import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
+import com.intellidesk.cognitia.analytics.models.dto.QuotaProvisionRequest;
+import com.intellidesk.cognitia.analytics.models.dto.TenantQuotaDTO;
 import com.intellidesk.cognitia.analytics.models.enums.EnforcementMode;
 
 public interface QuotaService {
@@ -21,7 +24,11 @@ public interface QuotaService {
     /** Get remaining allowance (approx) for tenant */
     long getTenantRemainingTokens(UUID tenantId);
 
-    // admin methods: provision quotas, assign plan, etc.
-    void provisionTenantQuota(UUID tenantId /*... spec ...*/);
+
+    TenantQuotaDTO getTenantQuota(UUID tenantId);
+
+    TenantQuotaDTO assignPlan(UUID tenantId, AssignPlanRequest request);
+
+    TenantQuotaDTO provisionQuota(UUID tenantId, QuotaProvisionRequest request);
 }
 
