@@ -7,4 +7,5 @@ public class UserMessageDTO {
     
     String message;
     String threadId;
+    String requestId;
 }

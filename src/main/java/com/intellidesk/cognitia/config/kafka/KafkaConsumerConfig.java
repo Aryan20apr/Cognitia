@@ -26,6 +26,12 @@ public class KafkaConsumerConfig {
     @Value(value = "${spring.kafka.bootstrap-servers}")
     private String bootstrapAddress;
 
+    @Value("${ingestion.group.name}")
+    private String ingestionGroupId;
+
+    @Value("${analytics.usage-events.group.name}")
+    private String analyticsUsageEventsGroupId;
+
     @Bean
     public ConsumerFactory<String, IngestionOutbox> resourceConsumerFactory(String groupId){
        Map<String, Object> props = new HashMap<>();
@@ -43,15 +49,15 @@ public class KafkaConsumerConfig {
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, IngestionOutbox> ingestionKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String,IngestionOutbox> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(resourceConsumerFactory("{ingestion.group.name}"));
+        factory.setConsumerFactory(resourceConsumerFactory(ingestionGroupId));
         return factory;
     }
 
     @Bean
-    public ConsumerFactory<String, ChatUsageDetailsDTO> usageEventsConsumerFactory(String groupId){
+    public ConsumerFactory<String, ChatUsageDetailsDTO> usageEventsConsumerFactory(){
        Map<String, Object> props = new HashMap<>();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, analyticsUsageEventsGroupId);
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
     props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class.getName()); // Add this line
@@ -65,7 +71,7 @@ public class KafkaConsumerConfig {
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String,ChatUsageDetailsDTO> usageEventsKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String,ChatUsageDetailsDTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(usageEventsConsumerFactory("{analytics.usage-events.group.name}"));
+        factory.setConsumerFactory(usageEventsConsumerFactory());
         return factory;
     }
 }

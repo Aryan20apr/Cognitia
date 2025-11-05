@@ -57,6 +57,7 @@ public class ChatUsage extends TenantAwareEntity {
     
     private String modelName;
 
+    @Column(columnDefinition = "TEXT")
     private String metaDataJson;
 
     

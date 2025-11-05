@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.Set;
 import java.util.UUID;
 
+import com.intellidesk.cognitia.analytics.models.enums.EnforcementMode;
 import com.intellidesk.cognitia.analytics.models.enums.QuotaStatus;
 import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
 
@@ -59,15 +60,18 @@ public class TenantQuota extends TenantAwareEntity {
     @JoinColumn(name = "plan_id", referencedColumnName = "id")
     private Plan planId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 32, nullable = false)
+    private QuotaStatus status = QuotaStatus.ACTIVE;
+
+    @Enumerated(EnumType.STRING)
+    private EnforcementMode enforcementMode = EnforcementMode.HYBRID;
+
     @Column(name = "billing_cycle_start")
     private LocalDate billingCycleStart;
 
     @Column(name = "billing_cycle_end")
     private LocalDate billingCycleEnd;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 32, nullable = false)
-    private QuotaStatus status = QuotaStatus.ACTIVE;
 
     @Column(name = "max_prompt_tokens")
     private Long maxPromptTokens;

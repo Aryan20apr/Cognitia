@@ -51,6 +51,7 @@ public class MeteringIngestService {
                                                     .totalTokens(totalTokens)
                                                     .requestId(requestId)
                                                     .modelName(modelName)
+                                                    .isProcessed(false)
                                                     .tenantId(TenantContext.getTenantId())
                                                     .threadId(threadId)
                                                     .userId(userId)

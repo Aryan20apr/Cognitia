@@ -9,7 +9,7 @@ import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
 public class UsageEventProducer {
 
     private final KafkaTemplate<String, ChatUsageDetailsDTO> kafkaTemplate;
-    private final String topic = "cognitia-chat-usage-events";
+    private final String topic = "chat-usage-events";
 
     public UsageEventProducer(KafkaTemplate<String, ChatUsageDetailsDTO> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;

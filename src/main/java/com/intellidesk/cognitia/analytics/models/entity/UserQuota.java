@@ -7,6 +7,8 @@ import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
@@ -18,6 +20,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.intellidesk.cognitia.analytics.models.enums.QuotaStatus;
 import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
 
 import lombok.AllArgsConstructor;
@@ -56,6 +59,10 @@ public class UserQuota extends TenantAwareEntity {
     @ManyToOne
     @JoinColumn(name = "tenant_quota_id", referencedColumnName = "id")
     private TenantQuota tenantQuota;
+
+     @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 32, nullable = false)
+    private QuotaStatus status = QuotaStatus.ACTIVE;
 
     @Column(name = "billing_cycle_start")
     private LocalDate billingCycleStart;
