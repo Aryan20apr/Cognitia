@@ -43,6 +43,7 @@ public class ChatService {
 
         final UUID threadId =UUID.fromString( message.getThreadId());
         
+        String requestId = message.getRequestId(); 
         // Get current authenticated user ID
         String userId = extractUserIdFromSecurityContext();
         final String resolvedUserId = userId;
@@ -102,6 +103,7 @@ public class ChatService {
                 .advisors(a -> {
                     a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
                     // Use thread.getUserId() if userId is not directly available
+                    a.param("requestId",requestId != null ? requestId: "1");
                     a.param("userId", resolvedUserId != null ? resolvedUserId.toString() : "");
                     a.param("tenantId", TenantContext.getTenantId().toString());
                 }) // Connect memory

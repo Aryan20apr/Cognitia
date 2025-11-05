@@ -1,6 +1,7 @@
 package com.intellidesk.cognitia.analytics.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -38,7 +39,6 @@ public class ChatUsageServiceImpl implements ChatUsageService {
 
         Tenant tenant = new Tenant();
         tenant.setId(chatUsageDetailsDTO.getTenantId());
-        chatUsage.setTenant(tenant);
 
         ChatThread thread = new ChatThread();
         thread.setId(chatUsageDetailsDTO.getThreadId());
@@ -78,6 +78,12 @@ public List<ChatUsageDetailsDTO> getChatUsageData(String userId, String tenantId
                      .map(chatUsageMapper::toDTO)
                      .collect(Collectors.toList());
 }
+
+    @Override
+    public Optional<ChatUsageDetailsDTO> findByRequestId(String requestId) {
+        Optional<ChatUsage> chatUsageOpt = chatUsageRepository.findByRequestId(requestId);
+        return chatUsageOpt.map(chatUsageMapper::toDTO);
+    }
 
     
 }

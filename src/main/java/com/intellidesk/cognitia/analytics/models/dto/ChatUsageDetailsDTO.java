@@ -19,15 +19,15 @@ public class ChatUsageDetailsDTO {
     private UUID userId;
     private UUID tenantId;
     private UUID threadId;
-
+    private String requestId;
     private Long promptTokens;
     private Long completionTokens;
     private Long totalTokens;
-
+    private Boolean isProcessed;
     private Double estimatedCost;
     private String modelName;
     private Long latencyMs;
-
+    private String metaDataJson;
     private Date createdAt;
     private Date updatedAt;
 }

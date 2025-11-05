@@ -1,4 +1,4 @@
-package com.intellidesk.cognitia.ingestion.config.kafka;
+package com.intellidesk.cognitia.config.kafka;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,6 +19,9 @@ public class KafkaConfig {
     @Value(value = "${ingestion.topic.name}")
     private String topicName;
 
+    @Value(value = "${analytics.usage-events.topic.name}")
+    private String usageEventsTopic;
+
     @Value(value = "${ingestion.partitions}")
     private Integer partitions;
 
@@ -35,5 +38,10 @@ public class KafkaConfig {
     @Bean
     public NewTopic topic(){
         return new NewTopic(topicName, partitions, replicas);
+    }
+
+    @Bean
+    public NewTopic usageEventsTopic(){
+        return new NewTopic(usageEventsTopic, partitions, replicas);
     }
 }
