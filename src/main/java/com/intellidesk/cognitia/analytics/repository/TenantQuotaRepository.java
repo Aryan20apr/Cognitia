@@ -15,6 +15,8 @@ public interface TenantQuotaRepository extends JpaRepository<TenantQuota, UUID> 
     @Query("SELECT tq FROM TenantQuota tq WHERE tq.tenantId = :tenantId AND tq.status = com.intellidesk.cognitia.analytics.models.enums.QuotaStatus.ACTIVE")
     public Optional<TenantQuota> findActiveQuotaByTenant(UUID tenantId);
 
+    Optional<TenantQuota> findByTenantId(UUID tenantId);
+
     @Query("SELECT tq.usedTotalTokens FROM TenantQuota tq WHERE tq.tenantId = :tenantId AND tq.status = com.intellidesk.cognitia.analytics.models.enums.QuotaStatus.ACTIVE")
     public Optional<Long> getUsedTotalTokens(UUID tenantId);
 
