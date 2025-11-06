@@ -15,16 +15,21 @@ import com.intellidesk.cognitia.userandauth.models.dtos.TenantDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
 import com.intellidesk.cognitia.userandauth.services.TenantService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import lombok.AllArgsConstructor;
 
 @RestController
 @AllArgsConstructor
 @RequestMapping("public/api/v1/company")
+@Tag(name = "Tenants", description = "Create and list tenants (public)")
 public class TenantController {
     
     private TenantService tenantService;
 
 
+    @Operation(summary = "Create tenant / company")
     @PostMapping
     public ResponseEntity<ApiResponse<TenantDTO>> createCompany(@RequestBody TenantDTO tenantDTO){
 
@@ -34,6 +39,7 @@ public class TenantController {
     }
 
 
+    @Operation(summary = "List all tenants")
     @GetMapping
     public ResponseEntity<ApiResponse<List<Tenant>>> getAllCompanies(){
 

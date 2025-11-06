@@ -3,5 +3,17 @@ spring:
         name: cognitia
     profiles:
         active: dev
-    
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    defaultModelsExpandDepth: -1
+    operationsSorter: method
+    tagsSorter: alpha
+    csrf:
+      enabled: false
+  show-login-endpoint: true
+
+
 

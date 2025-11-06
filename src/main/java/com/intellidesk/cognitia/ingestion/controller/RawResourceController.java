@@ -14,6 +14,9 @@ import com.intellidesk.cognitia.ingestion.models.dtos.CloudinaryUploadResult;
 import com.intellidesk.cognitia.ingestion.models.dtos.ResourceMetadata;
 import com.intellidesk.cognitia.ingestion.service.StorageService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,10 +24,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @AllArgsConstructor
 @RequestMapping("/api/v1/resource")
+@Tag(name = "Resources", description = "Raw resource ingestion and upload")
 public class RawResourceController {
 
     private StorageService storageService;
 
+    @Operation(summary = "Upload and ingest raw resource (multipart)")
     @PostMapping(value = "/ingest",  consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> ingestResource( @RequestPart("file") MultipartFile file,
         @RequestPart("name") String name, @RequestPart("description") String description) {

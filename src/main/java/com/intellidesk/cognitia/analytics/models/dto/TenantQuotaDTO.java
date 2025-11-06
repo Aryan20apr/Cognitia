@@ -8,9 +8,12 @@ import java.util.UUID;
 import com.intellidesk.cognitia.analytics.models.enums.EnforcementMode;
 import com.intellidesk.cognitia.analytics.models.enums.QuotaStatus;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import lombok.Data;
 
 @Data
+@Schema(description = "Tenant quota DTO with usage and limits")
 public class TenantQuotaDTO {
     private UUID id;
     private UUID tenantId;
