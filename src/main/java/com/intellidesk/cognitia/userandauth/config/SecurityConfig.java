@@ -41,7 +41,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**", "/public/**", "/api/tenants/create").permitAll()
+                .requestMatchers("/auth/**", "/public/**", "/api/tenants/create",  "/v3/api-docs/**",
+                "/swagger-ui/**",
+                "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userSDetailsService), UsernamePasswordAuthenticationFilter.class)

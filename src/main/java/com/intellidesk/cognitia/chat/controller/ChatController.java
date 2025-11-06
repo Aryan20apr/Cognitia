@@ -11,15 +11,20 @@ import com.intellidesk.cognitia.chat.models.dtos.UserMessageDTO;
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.service.ChatService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import lombok.AllArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/chat")
 @AllArgsConstructor
+@Tag(name = "Chat", description = "Chat endpoints")
 public class ChatController {
 
     private ChatService chatService;
     
+    @Operation(summary = "Post a user message and get a chat response")
     @PostMapping
     public ResponseEntity<?> postUserMessage(@RequestBody UserMessageDTO userMessageDTO){
 

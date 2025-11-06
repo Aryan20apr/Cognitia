@@ -24,15 +24,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/v1/user")
 @RequiredArgsConstructor
+@Tag(name = "Users", description = "User management endpoints")
 public class UserController {
 
     private final UserService userService;
 
+    @Operation(summary = "Create a new user (Requires SUPER_ADMIN)")
     @PostMapping()
     @PreAuthorize("hasAuthority('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<UserDetailsDTO>> createUser(@RequestBody UserCreationDTO userCreationDTO) {
@@ -44,6 +47,7 @@ public class UserController {
         return new ResponseEntity<>(apiResponse, HttpStatus.CREATED);
         
     }
+    @Operation(summary = "List all users")
     @GetMapping()
     public ResponseEntity<ApiResponse<List<UserDetailsDTO>>> getAllUsers() {
         List<UserDetailsDTO> users = userService.getAllUsers();
