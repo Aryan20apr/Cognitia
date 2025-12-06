@@ -45,6 +45,7 @@ public class Tenant {
     
     private String domain;
 
+    @Column(unique = true)
     private String contactEmail;
     
     @OneToOne

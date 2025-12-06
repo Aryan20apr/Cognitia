@@ -47,8 +47,10 @@ public class User extends TenantAwareEntity {
 
     private String name;
     
+    @Column(unique = true)
     private String email;
 
+    @Column(unique = true)
     private String phoneNumber;
 
     private String password;
@@ -57,8 +59,7 @@ public class User extends TenantAwareEntity {
     private Set<RefreshToken> refreshTokens = new HashSet<>();
 
 
-    @ManyToOne(fetch = FetchType.LAZY
-    )
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role", referencedColumnName = "roleId")
     private Role role;
 
