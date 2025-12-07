@@ -2,10 +2,13 @@ package com.intellidesk.cognitia.chat.service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.MessageType;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import org.springframework.ai.document.Document;
@@ -26,6 +29,8 @@ import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
 
 
 import lombok.AllArgsConstructor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Service
 @AllArgsConstructor
@@ -151,4 +156,119 @@ public class ChatService {
         }
         return userId;
      }
+
+
+    @Transactional
+    public Flux<String> streamUserMessage(UserMessageDTO message){
+
+        final UUID threadId =UUID.fromString( message.getThreadId());
+        
+        String requestId = message.getRequestId(); 
+        // Get current authenticated user ID
+        String userId = extractUserIdFromSecurityContext();
+        final String resolvedUserId = userId;
+        ChatThread thread = threadRepository.findById(threadId)
+        .orElseThrow(() -> new RuntimeException("Thread not found"));
+
+        String userMessage = message.getMessage();
+
+        List<Document> documents = vectorStore.similaritySearch(SearchRequest.builder().query(userMessage).similarityThreshold(0.6d).topK(3).build());
+
+        String context = documents.stream()
+        .map(Document::getFormattedContent)
+        .reduce("", (a, b) -> a + "\n" + b);
+
+        // 2️⃣ Persist user message
+        ChatMessage userMsg = ChatMessage.builder()
+                .thread(thread)
+                .sender(MessageType.USER)
+                .content(userMessage)
+                .build();
+        messageRepository.save(userMsg);
+
+        thread.addMessage(userMsg);
+
+        // String history = simpleChatMemoryService.loadMemoryForThread(threadId);
+        chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
+       
+        String systemPrompt = """
+                 You are a helpful assistant. Use both context and prior chat memory
+                to generate clear and accurate answers.
+
+                If the question refers to a recent or external event and you lack enough
+                information in the context, use the WebSearchTool to perform a web search
+                and include that information in your answer.
+
+                You also have access to the DateTimeTool for getting the current date and time.
+
+                Always respond in JSON format matching this schema:
+                {
+                  "answer": string,
+                  "sources": [string],
+                  "followUpSuggestions": [string],
+                  "confidenceScore": number
+                }
+                """;
+
+        String fullPrompt = """
+                Context:
+                %s
+
+                User:
+                %s
+                """.formatted(context, userMessage);
+
+        // 5️⃣ Call the LLM
+        Flux<ChatResponse> streamResponse = chatClient.prompt()
+                .advisors(a -> {
+                    a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
+                    // Use thread.getUserId() if userId is not directly available
+                    a.param("requestId",requestId != null ? requestId: "1");
+                    a.param("userId", resolvedUserId != null ? resolvedUserId.toString() : "");
+                    a.param("tenantId", TenantContext.getTenantId().toString());
+                }) // Connect memory
+                .system(systemPrompt)
+                .user(fullPrompt)
+                .stream().chatResponse();
+
+        
+            AtomicReference<StringBuilder> buffer = new AtomicReference<>(new StringBuilder());
+    
+            // return streamResponse.flatMap(chatResponse -> {
+            //     String content = chatResponse.getResult().getOutput().getText();
+            //     buffer.get().append(content);
+            //     return Flux.just(content);
+            // }).doFinally(signalType -> {
+            //     // 5️⃣ Save AI response
+            //     ChatMessage aiMsg = ChatMessage.builder()
+            //             .thread(thread)
+            //             .sender(MessageType.ASSISTANT)
+            //             .content(buffer.get().toString())
+            //             .build();
+            //     messageRepository.save(aiMsg);
+    
+            //     thread.addMessage(aiMsg);
+            //     threadRepository.save(thread);
+            // });
+
+            // Return a stream of individual tokens
+        return streamResponse
+                .flatMap(chunk -> {
+                    String delta = chunk.getResult().getOutput().getText(); // partial output
+                    buffer.get().append(delta);
+                    return Mono.just(delta);  // send token to the client
+                })
+                .doOnComplete(() -> {
+                    // Save final AI message
+                    ChatMessage aiMsg = ChatMessage.builder()
+                            .thread(thread)
+                            .sender(MessageType.ASSISTANT)
+                            .content(buffer.get().toString())
+                            .build();
+
+                    messageRepository.save(aiMsg);
+                    thread.addMessage(aiMsg);
+                    threadRepository.save(thread);
+                });
+        }
     }
