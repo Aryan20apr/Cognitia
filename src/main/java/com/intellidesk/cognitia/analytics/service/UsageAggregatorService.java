@@ -26,7 +26,7 @@ public class UsageAggregatorService {
      * Process incoming usage events (from MQ, HTTP, or batch job).
      */
     @Transactional
-    @KafkaListener(topics = "${analytics.usage-events.topic.name}", groupId = "${analytics.usage-events.group.name}", containerFactory = "ingestionKafkaListenerContainerFactory")
+    @KafkaListener(topics = "${analytics.usage-events.topic.name}", groupId = "${analytics.usage-events.group.name}", containerFactory = "usageEventsKafkaListenerContainerFactory")
     public void processUsageEvent(ChatUsageDetailsDTO event) {
         try {
             
