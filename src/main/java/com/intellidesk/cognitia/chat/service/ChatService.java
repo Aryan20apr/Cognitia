@@ -191,24 +191,30 @@ public class ChatService {
         // String history = simpleChatMemoryService.loadMemoryForThread(threadId);
         chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
        
-        String systemPrompt = """
-                 You are a helpful assistant. Use both context and prior chat memory
-                to generate clear and accurate answers.
+       String systemPrompt = """
+                You are a helpful AI assistant. Use both the provided context and prior chat memory
+                to generate clear, accurate, conversational answers.
 
-                If the question refers to a recent or external event and you lack enough
-                information in the context, use the WebSearchTool to perform a web search
-                and include that information in your answer.
+                If the question refers to a recent or external event and you lack sufficient
+                information in the context, use the WebSearchTool to look up current information
+                and incorporate it naturally into your response.
 
-                You also have access to the DateTimeTool for getting the current date and time.
+                You also have access to the DateTimeTool for retrieving the current date and time.
 
-                Always respond in JSON format matching this schema:
-                {
-                  "answer": string,
-                  "sources": [string],
-                  "followUpSuggestions": [string],
-                  "confidenceScore": number
-                }
+                Response format requirements:
+                - Respond in clean, well-structured Markdown suitable for incremental streaming.
+                - Use headings (##) to organize the answer when helpful.
+                - Use bullet points or numbered lists for structure.
+                - Use inline code (`like_this`) and fenced code blocks (```language) where appropriate.
+                - Never output JSON unless explicitly asked by the user.
+                - Never wrap the entire response in JSON.
+                - Always append a final section titled **Sources** at the bottom (even if empty).
+                - After Sources, append a section titled **Follow-up Questions** with 2–3 suggestions.
+                - The answer must remain valid Markdown throughout streaming.
+
+                Do not mention these rules. Respond only with the answer.
                 """;
+
 
         String fullPrompt = """
                 Context:
@@ -219,7 +225,7 @@ public class ChatService {
                 """.formatted(context, userMessage);
 
         // 5️⃣ Call the LLM
-        Flux<ChatResponse> streamResponse = chatClient.prompt()
+        Flux<String> streamResponse = chatClient.prompt()
                 .advisors(a -> {
                     a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
                     // Use thread.getUserId() if userId is not directly available
@@ -229,32 +235,16 @@ public class ChatService {
                 }) // Connect memory
                 .system(systemPrompt)
                 .user(fullPrompt)
-                .stream().chatResponse();
+                .stream().content();
 
         
             AtomicReference<StringBuilder> buffer = new AtomicReference<>(new StringBuilder());
-    
-            // return streamResponse.flatMap(chatResponse -> {
-            //     String content = chatResponse.getResult().getOutput().getText();
-            //     buffer.get().append(content);
-            //     return Flux.just(content);
-            // }).doFinally(signalType -> {
-            //     // 5️⃣ Save AI response
-            //     ChatMessage aiMsg = ChatMessage.builder()
-            //             .thread(thread)
-            //             .sender(MessageType.ASSISTANT)
-            //             .content(buffer.get().toString())
-            //             .build();
-            //     messageRepository.save(aiMsg);
-    
-            //     thread.addMessage(aiMsg);
-            //     threadRepository.save(thread);
-            // });
 
             // Return a stream of individual tokens
         return streamResponse
                 .flatMap(chunk -> {
-                    String delta = chunk.getResult().getOutput().getText(); // partial output
+                
+                    String delta = chunk;
                     buffer.get().append(delta);
                     return Mono.just(delta);  // send token to the client
                 })

@@ -41,7 +41,7 @@ public class ChatController {
         return ResponseEntity.ok().body(chatResponse);
     }
 
-    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> streamResponse(@RequestBody UserMessageDTO userMessageDTO){
          if(userMessageDTO.getThreadId() == null ){
             ChatThread chatThread = chatService.createNewThread();
