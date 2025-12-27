@@ -17,6 +17,10 @@ public class LoginResponseDTO {
     
     @Schema(description = "JWT access token")
     String accessToken;
+    
+    @Schema(description = "Access token expiration timestamp (Unix timestamp in milliseconds)")
+    Long expiresAt;
+    
     @Schema(description = "Authenticated user details")
     UserDetailsDTO userDetailsDTO;
 }

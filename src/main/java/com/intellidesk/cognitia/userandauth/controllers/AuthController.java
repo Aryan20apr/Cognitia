@@ -76,10 +76,12 @@ public class AuthController {
         
         LoginResponseDTO loginResponseDTO = new LoginResponseDTO();
         loginResponseDTO.setAccessToken(access);
+        loginResponseDTO.setExpiresAt(jwtProvider.getExpirationTimeFromToken(access));
         UserDetailsDTO userDetailsDTO = Utils.mapToUserDetailsDTO(user);
         loginResponseDTO.setUserDetailsDTO(userDetailsDTO);
         
         ResponseCookie cookie = createRefreshCookie(rawRefresh);
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(loginResponseDTO);
@@ -94,9 +96,13 @@ public class AuthController {
         String raw = readRefreshFromCookieOrBody(req);
         TokenPair pair = refreshService.rotate(raw);
         ResponseCookie cookie = createRefreshCookie(pair.getNewRefreshToken());
+        Long expiresAt = jwtProvider.getExpirationTimeFromToken(pair.getNewAccessToken());
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(Map.of("accessToken", pair.getNewAccessToken()));
+                .body(Map.of(
+                    "accessToken", pair.getNewAccessToken(),
+                    "expiresAt", expiresAt != null ? expiresAt : 0
+                ));
     }
 
      @Operation(
@@ -144,7 +150,7 @@ public class AuthController {
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
                 .secure(secure)
-                .path("/auth/refresh")
+                .path("/auth")
                 .maxAge(maxAge);
         
         // Set SameSite attribute based on configuration

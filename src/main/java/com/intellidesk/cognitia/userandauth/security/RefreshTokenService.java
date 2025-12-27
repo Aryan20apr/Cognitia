@@ -77,8 +77,11 @@ public class RefreshTokenService {
         created.setTokenHash(hasher.hash(newRaw));
         created.setUser(old.getUser());
         created.setCreatedAt(new Date());
-        created.setExpiresAt(new Date(System.currentTimeMillis() + refreshExpirationMs));
-        log.debug("[rotate] Saving new refresh token for user id: {}", old.getUser().getId());
+        // Preserve the original expiration date to prevent indefinite session extension
+        // This ensures users must re-authenticate after the original 14-day period
+        created.setExpiresAt(old.getExpiresAt());
+        log.debug("[rotate] Saving new refresh token for user id: {} with preserved expiration: {}", 
+                old.getUser().getId(), old.getExpiresAt());
         repo.save(created);
 
         old.setReplacedBy(created.getId());
