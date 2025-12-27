@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.userandauth.models.dtos.TenantDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
+import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.services.TenantService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,8 +23,8 @@ import lombok.AllArgsConstructor;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("public/api/v1/company")
-@Tag(name = "Tenants", description = "Create and list tenants (public)")
+@RequestMapping("/api/v1/company")
+@Tag(name = "Tenants", description = "Tenant management endpoints")
 public class TenantController {
     
     private TenantService tenantService;
@@ -36,6 +37,14 @@ public class TenantController {
        TenantDTO tenant = tenantService.createTenant(tenantDTO);
        ApiResponse<TenantDTO> apiResponse = new ApiResponse<>("Tenant created successfully", true, tenant);
        return new ResponseEntity<>(apiResponse, HttpStatus.CREATED);
+    }
+
+    @Operation(description = "Get tenant by id")
+    @GetMapping("/details")
+    public ResponseEntity<ApiResponse<TenantDTO>> getTenantById(){
+        TenantDTO tenant = tenantService.getTenant(TenantContext.getTenantId().toString());
+        ApiResponse<TenantDTO> apiResponse = new ApiResponse<>("Tenant fetched successfully", true, tenant);
+        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
     }
 
 

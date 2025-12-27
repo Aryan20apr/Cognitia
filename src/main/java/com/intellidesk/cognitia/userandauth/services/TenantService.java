@@ -11,7 +11,7 @@ public interface TenantService {
     
     public TenantDTO createTenant(TenantDTO tenantDTO);
 
-    public Tenant getTenant(String companyId);
+    public TenantDTO getTenant(String companyId);
 
     public List<Tenant> getAllCompanies();
 }

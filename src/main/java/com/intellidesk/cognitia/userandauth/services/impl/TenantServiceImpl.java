@@ -68,14 +68,16 @@ public class TenantServiceImpl implements TenantService {
         return mapToDTO(newTenant);
     }
 
-    public Tenant getTenant(String tenantId) {
+    public TenantDTO getTenant(String tenantId) {
 
         Optional<Tenant> optionalTenant = tenantRepository.findById(UUID.fromString(tenantId));
 
         if (optionalTenant.isEmpty()) {
             throw new RuntimeException("Company not found with company id:" + tenantId);
         }
-        return optionalTenant.get();
+
+        Tenant tenant = optionalTenant.get();
+        return mapToDTO(tenant);
     }
 
     @Override
