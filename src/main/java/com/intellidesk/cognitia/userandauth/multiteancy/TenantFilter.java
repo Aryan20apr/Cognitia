@@ -29,6 +29,14 @@ public class TenantFilter implements Filter {
     private boolean isPublicPath(ServletRequest request) {
         if (request instanceof HttpServletRequest httpRequest) {
             String path = httpRequest.getRequestURI();
+            String method = httpRequest.getMethod();
+            
+            // POST /api/v1/company is public (tenant creation endpoint)
+            if ("POST".equals(method) && "/api/v1/company".equals(path)) {
+                log.info("[TenantFilter] : [isPublicPath] : POST /api/v1/company is a public path");
+                return true;
+            }
+            
             log.info("[TenantFilter] : [isPublicPath] : Checking path '{}' against public paths: {}", path, PUBLIC_PATHS);
             boolean isPublic = PUBLIC_PATHS.stream().anyMatch(path::startsWith);
             log.info("[TenantFilter] : [isPublicPath] : Result: {}", isPublic);
