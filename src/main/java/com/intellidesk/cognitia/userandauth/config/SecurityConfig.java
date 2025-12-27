@@ -70,7 +70,7 @@ public class SecurityConfig {
                 "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint(jwtAuthenticationEntryPoint))
-            .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userSDetailsService), UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, userSDetailsService, jwtAuthenticationEntryPoint), UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(jwtTenantFilter, UsernamePasswordAuthenticationFilter.class);
             
             http.authenticationProvider(authenticationProvider());

@@ -4,8 +4,10 @@ import java.io.IOException;
 import java.util.UUID;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -23,10 +25,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
+    private final AuthenticationEntryPoint authenticationEntryPoint;
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtProvider, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwtProvider, UserDetailsService userDetailsService, AuthenticationEntryPoint authenticationEntryPoint) {
         this.jwtTokenProvider = jwtProvider;
         this.userDetailsService = userDetailsService;
+        this.authenticationEntryPoint = authenticationEntryPoint;
     }
 
     // @Override
@@ -86,29 +90,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = extractTokenFromRequest(request);
 
-            if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-                String email = jwtTokenProvider.getEmailFromToken(token);
-
-                var userDetails = userDetailsService.loadUserByUsername(email);
-                var authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities());
-
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                String tenantId = jwtTokenProvider.getTenantFromToken(token);
-                if (tenantId != null) {
-                    log.info("[JwtAuthenticationFilter] [doFilterInternal] Setting tenant context for tenantId: {}", tenantId);
-                    TenantContext.setTenantId(UUID.fromString(tenantId));
-                }
+            if (StringUtils.hasText(token)){
+              try {
+                jwtTokenProvider.validateTokenOrThrow(token); 
+                    String email = jwtTokenProvider.getEmailFromToken(token);
+    
+                    var userDetails = userDetailsService.loadUserByUsername(email);
+                    var authentication = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities());
+    
+                    authentication.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    String tenantId = jwtTokenProvider.getTenantFromToken(token);
+                    if (tenantId != null) {
+                        log.info("[JwtAuthenticationFilter] [doFilterInternal] Setting tenant context for tenantId: {}", tenantId);
+                        TenantContext.setTenantId(UUID.fromString(tenantId));
+                    }
+              } catch (AuthenticationException e) {
+                throw e;
+              }
             }
 
             filterChain.doFilter(request, response);
+        } catch (AuthenticationException e) {
+            // Log authentication errors and propagate
+            log.warn("[JwtAuthenticationFilter] [doFilterInternal] Authentication exception", e);
+            authenticationEntryPoint.commence(request, response, e);
+            return;
         } catch (Exception e) {
-            // Log error but don't clear tenant context here - let JwtTenantFilter handle it
-            throw e;
+            // Log other errors but don't clear tenant context here - let JwtTenantFilter handle it
+            log.error("[JwtAuthenticationFilter] [doFilterInternal] Unexpected exception", e);
+            throw new ServletException("JwtAuthenticationFilter: Unexpected error", e);
         }
     }
 

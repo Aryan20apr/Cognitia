@@ -10,12 +10,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.http.auth.AuthenticationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.intellidesk.cognitia.userandauth.models.entities.User;
+import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.JwtTokenExpiredException;
+import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.JwtTokenInvalidException;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -32,7 +35,7 @@ public class JwtTokenProvider {
     
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
-    private final long accessTokenMs = Duration.ofMinutes(60).toMillis();
+    private final long accessTokenMs = Duration.ofMinutes(2).toMillis();
     private final String issuer = "my-monolith";
 
     public JwtTokenProvider(@Value("${jwt.private-key.path}") String privKeyPath,
@@ -73,23 +76,27 @@ public class JwtTokenProvider {
      * @param token the JWT token to validate
      * @return true if token is valid, false otherwise
      */
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parser().verifyWith(publicKey).build().parseSignedClaims(token);
-            return true;
-        } catch (SignatureException e) {
-            logger.error("Invalid JWT signature: {}", e.getMessage());
-        } catch (MalformedJwtException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage());
-        } catch (ExpiredJwtException e) {
-            logger.error("JWT token is expired: {}", e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            logger.error("JWT token is unsupported: {}", e.getMessage());
-        } catch (IllegalArgumentException e) {
-            logger.error("JWT claims string is empty: {}", e.getMessage());
-        }
-        return false;
+   // Add a method that throws exceptions instead of returning boolean
+public void validateTokenOrThrow(String token) throws AuthenticationException {
+    try {
+        Jwts.parser().verifyWith(publicKey).build().parseSignedClaims(token);
+    } catch (ExpiredJwtException e) {
+        logger.error("JWT token is expired: {}", e.getMessage());
+        throw new JwtTokenExpiredException("JWT token has expired: " + e.getMessage());
+    } catch (SignatureException e) {
+        logger.error("Invalid JWT signature: {}", e.getMessage());
+        throw new JwtTokenInvalidException("Invalid JWT signature: " + e.getMessage());
+    } catch (MalformedJwtException e) {
+        logger.error("Invalid JWT token: {}", e.getMessage());
+        throw new JwtTokenInvalidException("Malformed JWT token: " + e.getMessage());
+    } catch (UnsupportedJwtException e) {
+        logger.error("JWT token is unsupported: {}", e.getMessage());
+        throw new JwtTokenInvalidException("Unsupported JWT token: " + e.getMessage());
+    } catch (IllegalArgumentException e) {
+        logger.error("JWT claims string is empty: {}", e.getMessage());
+        throw new JwtTokenInvalidException("JWT claims string is empty: " + e.getMessage());
     }
+}
 
     /**
      * Extracts email from JWT token
@@ -148,6 +155,22 @@ public class JwtTokenProvider {
             return jws.getPayload().get("roles", List.class);
         } catch (Exception e) {
             logger.error("Error extracting roles from token: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Gets the expiration time from JWT token
+     * @param token the JWT token
+     * @return expiration timestamp in milliseconds (Unix timestamp), or null if error
+     */
+    public Long getExpirationTimeFromToken(String token) {
+        try {
+            Jws<Claims> jws = parseToken(token);
+            Date expiration = jws.getPayload().getExpiration();
+            return expiration != null ? expiration.getTime() : null;
+        } catch (Exception e) {
+            logger.error("Error extracting expiration time from token: {}", e.getMessage());
             return null;
         }
     }

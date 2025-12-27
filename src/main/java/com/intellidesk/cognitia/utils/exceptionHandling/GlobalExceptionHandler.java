@@ -43,6 +43,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(401).body(response);
     }
 
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ExceptionApiResponse<?>> handleInvalidTokenException(InvalidTokenException invalidTokenException) {
+        invalidTokenException.printStackTrace();
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message(invalidTokenException.getMessage())
+                .data(null)
+                .code(401)
+                .build();
+    
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
     @ExceptionHandler(ResourceUploadException.class)
     public ResponseEntity<ExceptionApiResponse<?>> handleFileUploadException(ResourceUploadException e) {
 
@@ -87,4 +99,28 @@ public class GlobalExceptionHandler {
         // 200 OK or 409; choose 409 conflict to indicate duplicate — or return cached response if available
         return ResponseEntity.status(HttpStatus.OK).body(body);
     }
+
+    @ExceptionHandler(Error.class)
+public ResponseEntity<ExceptionApiResponse<?>> handleError(Error error) {
+    log.error("[GlobalExceptionHandler] : [handleError] : " + error.getMessage(), error);
+    error.printStackTrace();
+    ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+            .message("Internal server error: " + error.getMessage())
+            .data(null)
+            .code(500)
+            .build();
+    return ResponseEntity.status(500).body(response);
+}
+
+@ExceptionHandler(Throwable.class)
+public ResponseEntity<ExceptionApiResponse<?>> handleThrowable(Throwable throwable) {
+    log.error("[GlobalExceptionHandler] : [handleThrowable] : " + throwable.getMessage(), throwable);
+    throwable.printStackTrace();
+    ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+            .message("Internal server error: " + throwable.getMessage())
+            .data(null)
+            .code(500)
+            .build();
+    return ResponseEntity.status(500).body(response);
+}
 }
