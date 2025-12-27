@@ -15,5 +15,9 @@ springdoc:
       enabled: false
   show-login-endpoint: true
 
+cookie:
+  secure: true  # Default to true for production (HTTPS), override in dev profile
+  sameSite: None  # None for cross-origin, Lax/Strict for same-site
+
 
 
