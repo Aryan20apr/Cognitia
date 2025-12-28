@@ -43,7 +43,7 @@ import lombok.Setter;
 @Builder
 @EqualsAndHashCode(callSuper = true)
 @Filters(@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId"))
-public class RawSouce extends TenantAwareEntity{
+public class Resource extends TenantAwareEntity{
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

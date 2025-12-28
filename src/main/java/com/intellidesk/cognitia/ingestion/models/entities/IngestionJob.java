@@ -35,7 +35,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-public class IngestionOutbox {
+public class IngestionJob {
 
     @Id
     @GeneratedValue(strategy=GenerationType.UUID)
@@ -43,7 +43,7 @@ public class IngestionOutbox {
 
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "resId", referencedColumnName = "resId")
-    private RawSouce source;
+    private Resource source;
 
     @Column(name = "status", nullable = false)
     private IngestionStatus status;
@@ -75,7 +75,7 @@ public class IngestionOutbox {
             return false;
         if (getClass() != obj.getClass())
             return false;
-        IngestionOutbox other = (IngestionOutbox) obj;
+        IngestionJob other = (IngestionJob) obj;
         if (id == null) {
             if (other.id != null)
                 return false;

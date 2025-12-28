@@ -12,8 +12,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.intellidesk.cognitia.ingestion.models.dtos.CloudinaryUploadResult;
 import com.intellidesk.cognitia.ingestion.models.dtos.ResourceDetails;
 import com.intellidesk.cognitia.ingestion.models.dtos.ResourceMetadata;
-import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
-import com.intellidesk.cognitia.ingestion.models.entities.RawSouce;
+import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
+import com.intellidesk.cognitia.ingestion.models.entities.Resource;
 import com.intellidesk.cognitia.ingestion.models.enums.IngestionStatus;
 import com.intellidesk.cognitia.ingestion.models.enums.Status;
 import com.intellidesk.cognitia.ingestion.repository.ResourceOutboxRepository;
@@ -47,7 +47,7 @@ public class ResourceServiceImpl implements ResourceService {
         try {
            CloudinaryUploadResult cloudinaryUploadResult = fileUploadStrategy.upload(file);
            
-           RawSouce rawSouce = RawSouce.builder()
+           Resource rawSouce = Resource.builder()
                 .assetId(cloudinaryUploadResult.assetId())
                 .url(cloudinaryUploadResult.url())
                 .name(resourceMetadata.name())
@@ -59,7 +59,7 @@ public class ResourceServiceImpl implements ResourceService {
                 .status(Status.UPLOADED)
                 .build();
 
-            IngestionOutbox ingestionOutbox = IngestionOutbox.builder()
+            IngestionJob ingestionOutbox = IngestionJob.builder()
                 .source(rawSouce)
                 .status(IngestionStatus.PENDING_PROCESSING)
                 .retries(0)
@@ -96,7 +96,7 @@ public class ResourceServiceImpl implements ResourceService {
             Sort.by(Sort.Direction.DESC, "createdAt") // optional but recommended
     );
 
-    Page<RawSouce> pageResult = resourceRepository.findAll(pageable);
+    Page<Resource> pageResult = resourceRepository.findAll(pageable);
 
     return pageResult.map(res -> mapper.toDto(res));
     }

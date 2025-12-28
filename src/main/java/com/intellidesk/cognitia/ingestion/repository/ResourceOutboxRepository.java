@@ -5,10 +5,10 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
+import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
 import com.intellidesk.cognitia.ingestion.models.enums.IngestionStatus;
 
 
-public interface ResourceOutboxRepository extends JpaRepository<IngestionOutbox, UUID> {
-      List<IngestionOutbox> findByStatusOrderByCreatedAtAsc(IngestionStatus status);
+public interface ResourceOutboxRepository extends JpaRepository<IngestionJob, UUID> {
+      List<IngestionJob> findByStatusOrderByCreatedAtAsc(IngestionStatus status);
 }
