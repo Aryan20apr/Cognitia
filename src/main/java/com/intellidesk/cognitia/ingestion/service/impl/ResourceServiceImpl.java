@@ -1,10 +1,11 @@
 package com.intellidesk.cognitia.ingestion.service.impl;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -87,11 +88,17 @@ public class ResourceServiceImpl implements ResourceService {
 }
 
     @Override
-    public List<ResourceDetails> getResourceUploadHistory() {
+    public Page<ResourceDetails> getResourceUploadHistory(int page, int size) {
        
-        List<RawSouce> resoList = resourceRepository.findAll();
-        List<ResourceDetails> uploadHistory = resoList.stream().map(res -> mapper.toDto(res)).collect(Collectors.toList());
-        return uploadHistory;
+        Pageable pageable = PageRequest.of(
+            page,
+            size,
+            Sort.by(Sort.Direction.DESC, "createdAt") // optional but recommended
+    );
+
+    Page<RawSouce> pageResult = resourceRepository.findAll(pageable);
+
+    return pageResult.map(res -> mapper.toDto(res));
     }
 
     

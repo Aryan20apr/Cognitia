@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
 
@@ -122,5 +123,17 @@ public ResponseEntity<ExceptionApiResponse<?>> handleThrowable(Throwable throwab
             .code(500)
             .build();
     return ResponseEntity.status(500).body(response);
+}
+
+@ExceptionHandler(MissingServletRequestPartException.class)
+public ResponseEntity<ExceptionApiResponse<?>> handleMissingServletRequestPartException(MissingServletRequestPartException ex) {
+    log.error("[GlobalExceptionHandler] : [handleMissingServletRequestPartException] : " + ex.getMessage(), ex);
+    ex.printStackTrace();
+    ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+            .message(ex.getMessage())
+            .data(null)
+            .code(400)
+            .build();
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
 }
 }
