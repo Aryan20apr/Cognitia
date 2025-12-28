@@ -1,7 +1,10 @@
 package com.intellidesk.cognitia.ingestion.controller;
 
+import java.util.List;
+
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.ingestion.models.dtos.CloudinaryUploadResult;
+import com.intellidesk.cognitia.ingestion.models.dtos.ResourceDetails;
 import com.intellidesk.cognitia.ingestion.models.dtos.ResourceMetadata;
 import com.intellidesk.cognitia.ingestion.service.ResourceService;
 
@@ -45,7 +49,8 @@ public class RawResourceController {
     @Operation(summary = "Get all uploaded resources")
     @GetMapping(value = "/history")
     public ResponseEntity<?> getResourceHistory() {
-        
+        List<ResourceDetails> history = resourceService.getResourceUploadHistory();
+        return ResponseEntity.ok(new ApiResponse<>("History fetched", true, history));
     }
 
 
