@@ -3,13 +3,17 @@ package com.intellidesk.cognitia.ingestion.models.entities;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import com.intellidesk.cognitia.ingestion.models.enums.Status;
-
+import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.Filters;
+import lombok.EqualsAndHashCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -37,7 +41,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-public class RawSouce {
+@EqualsAndHashCode(callSuper = true)
+@Filters(@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId"))
+public class RawSouce extends TenantAwareEntity{
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -81,41 +87,4 @@ public class RawSouce {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false, updatable = true )
     private Date updatedAt;
-
-    @Override
-    public int hashCode() {
-       return Objects.hash(resId, name, description, url, format);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        RawSouce other = (RawSouce) obj;
-        if (resId == null) {
-            if (other.resId != null)
-                return false;
-        } else if (!resId.equals(other.resId))
-            return false;
-        if (name == null) {
-            if (other.name != null)
-                return false;
-        } else if (!name.equals(other.name))
-            return false;
-        if (description == null) {
-            if (other.description != null)
-                return false;
-        } else if (!description.equals(other.description))
-            return false;
-        if (url == null) {
-            if (other.url != null)
-                return false;
-        } else if (!url.equals(other.url))
-            return false;
-        return true;
-    }
 }
