@@ -123,9 +123,9 @@ storage:
 
 jwt:
   public-key:
-    path: ./public.pem
+    path: classpath:keys/public.pem
   private-key:
-    path: ./private.pem  
+    path: classpath:keys/private.pem
 
 refresh:
   secret: ${REFRESH_TOKEN_SECRET}
