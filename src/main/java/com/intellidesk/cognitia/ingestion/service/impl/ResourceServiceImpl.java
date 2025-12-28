@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.intellidesk.cognitia.ingestion.models.dtos.CloudinaryUploadResult;
@@ -16,7 +17,7 @@ import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
 import com.intellidesk.cognitia.ingestion.models.entities.Resource;
 import com.intellidesk.cognitia.ingestion.models.enums.IngestionStatus;
 import com.intellidesk.cognitia.ingestion.models.enums.Status;
-import com.intellidesk.cognitia.ingestion.repository.ResourceOutboxRepository;
+import com.intellidesk.cognitia.ingestion.repository.IngestionJobRepository;
 import com.intellidesk.cognitia.ingestion.repository.ResourceRepository;
 import com.intellidesk.cognitia.ingestion.service.ResourceService;
 import com.intellidesk.cognitia.ingestion.service.uploadStrategy.FileUploadStrategy;
@@ -24,7 +25,6 @@ import com.intellidesk.cognitia.ingestion.service.uploadStrategy.FileUploadStrat
 import com.intellidesk.cognitia.ingestion.utils.ResourceMapper;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
 
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ResourceServiceImpl implements ResourceService {
 
     private final FileUploadStrategyFactory fileUploadStrategyFactory;
-    private final ResourceOutboxRepository resourceOutboxRepository;
+    private final IngestionJobRepository resourceOutboxRepository;
     private final ResourceRepository resourceRepository;
     private final ResourceMapper mapper;
 
@@ -88,6 +88,7 @@ public class ResourceServiceImpl implements ResourceService {
 }
 
     @Override
+    @Transactional
     public Page<ResourceDetails> getResourceUploadHistory(int page, int size) {
        
         Pageable pageable = PageRequest.of(

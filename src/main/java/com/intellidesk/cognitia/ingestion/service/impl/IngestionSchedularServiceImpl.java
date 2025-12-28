@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
 import com.intellidesk.cognitia.ingestion.models.enums.IngestionStatus;
-import com.intellidesk.cognitia.ingestion.repository.ResourceOutboxRepository;
+import com.intellidesk.cognitia.ingestion.repository.IngestionJobRepository;
 import com.intellidesk.cognitia.ingestion.service.IngetionSchedularService;
 
 import jakarta.transaction.Transactional;
@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class IngestionSchedularServiceImpl implements IngetionSchedularService {
 
-    private final ResourceOutboxRepository resourceOutboxRepository;
+    private final IngestionJobRepository ingestionJobRepository;
     private final KafkaTemplate<String, IngestionJob> kafkaTemplate;
 
     @Value("${ingestion.topic.name}")
@@ -36,7 +36,7 @@ public class IngestionSchedularServiceImpl implements IngetionSchedularService {
     public void processPendingResourceIngestions() {
         log.info("Starting to process pending resource ingestions");
 
-        List<IngestionJob> pendingIngestions = resourceOutboxRepository
+        List<IngestionJob> pendingIngestions = ingestionJobRepository
                 .findByStatusOrderByCreatedAtAsc(IngestionStatus.PENDING_PROCESSING);
 
         if (pendingIngestions.isEmpty()) {
@@ -73,7 +73,7 @@ public class IngestionSchedularServiceImpl implements IngetionSchedularService {
 
     private void updateIngestionStatus(IngestionJob ingestion, IngestionStatus status) {
         ingestion.setStatus(status);
-        resourceOutboxRepository.save(ingestion);
+        ingestionJobRepository.save(ingestion);
         log.info("Updated ingestion ID: {} status to: {}", ingestion.getId(), status);
     }
 

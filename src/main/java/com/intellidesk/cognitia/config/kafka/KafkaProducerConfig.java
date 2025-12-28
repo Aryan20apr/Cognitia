@@ -14,7 +14,7 @@ import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
-import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
+import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
 
 
 @Configuration
@@ -25,7 +25,7 @@ public class KafkaProducerConfig {
 
 
      @Bean
-    public ProducerFactory<String, IngestionOutbox> ingestionFactory() {
+    public ProducerFactory<String, IngestionJob> ingestionFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -43,7 +43,7 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, IngestionOutbox> kafkaTemplate() {
+    public KafkaTemplate<String, IngestionJob> kafkaTemplate() {
         return new KafkaTemplate<>(ingestionFactory());
     }
 
