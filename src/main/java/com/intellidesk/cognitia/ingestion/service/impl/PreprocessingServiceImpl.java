@@ -15,14 +15,13 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
 
-import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
-import com.intellidesk.cognitia.ingestion.models.entities.RawSouce;
+import com.intellidesk.cognitia.ingestion.models.entities.Resource;
 import com.intellidesk.cognitia.ingestion.service.PreprocessingService;
 import com.intellidesk.cognitia.ingestion.service.preprocessingStrategy.PreprocessingStrategy;
 
 import org.springframework.core.io.PathResource;
-import org.springframework.core.io.Resource;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,9 +45,9 @@ public class PreprocessingServiceImpl implements PreprocessingService {
    
     @Async
     @Transactional(Transactional.TxType.REQUIRES_NEW)
-    public void preprocessFile(IngestionOutbox ingestoionOutbox){
+    public void preprocessFile(IngestionJob ingestoionOutbox){
 
-        RawSouce rawSource = ingestoionOutbox.getSource();
+        Resource rawSource = ingestoionOutbox.getSource();
         
         // Use ingestion outbox instead
         String url = rawSource.getUrl();

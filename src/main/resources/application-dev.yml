@@ -13,6 +13,10 @@ spring:
     redis:
       url: localhost
       port: 6379
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
 
   cache:
     type: redis
@@ -123,9 +127,9 @@ storage:
 
 jwt:
   public-key:
-    path: ./public.pem
+    path: classpath:keys/public.pem
   private-key:
-    path: ./private.pem  
+    path: classpath:keys/private.pem
 
 refresh:
   secret: ${REFRESH_TOKEN_SECRET}

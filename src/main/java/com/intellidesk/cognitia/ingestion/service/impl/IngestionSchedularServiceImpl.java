@@ -8,14 +8,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
-import com.intellidesk.cognitia.ingestion.models.entities.RawSouce;
+import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
 import com.intellidesk.cognitia.ingestion.models.enums.IngestionStatus;
-import com.intellidesk.cognitia.ingestion.repository.ResourceOutboxRepository;
+import com.intellidesk.cognitia.ingestion.repository.IngestionJobRepository;
 import com.intellidesk.cognitia.ingestion.service.IngetionSchedularService;
 
 import jakarta.transaction.Transactional;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,8 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class IngestionSchedularServiceImpl implements IngetionSchedularService {
 
-    private final ResourceOutboxRepository resourceOutboxRepository;
-    private final KafkaTemplate<String, IngestionOutbox> kafkaTemplate;
+    private final IngestionJobRepository ingestionJobRepository;
+    private final KafkaTemplate<String, IngestionJob> kafkaTemplate;
 
     @Value("${ingestion.topic.name}")
     private String topic;
@@ -38,7 +36,7 @@ public class IngestionSchedularServiceImpl implements IngetionSchedularService {
     public void processPendingResourceIngestions() {
         log.info("Starting to process pending resource ingestions");
 
-        List<IngestionOutbox> pendingIngestions = resourceOutboxRepository
+        List<IngestionJob> pendingIngestions = ingestionJobRepository
                 .findByStatusOrderByCreatedAtAsc(IngestionStatus.PENDING_PROCESSING);
 
         if (pendingIngestions.isEmpty()) {
@@ -57,7 +55,7 @@ public class IngestionSchedularServiceImpl implements IngetionSchedularService {
                                 handleFailedIngestion(ingestion);
                             } else {
                                 log.info("Successfully published message for ingestion ID: {}", ingestion.getId());
-                                updateIngestionStatus(ingestion, IngestionStatus.PUBLISHED);
+                                updateIngestionStatus(ingestion, IngestionStatus.INDEXED);
                             }
                         });
 
@@ -68,14 +66,14 @@ public class IngestionSchedularServiceImpl implements IngetionSchedularService {
         });
     }
 
-    private void handleFailedIngestion(IngestionOutbox ingestion) {
+    private void handleFailedIngestion(IngestionJob ingestion) {
         ingestion.setRetries(ingestion.getRetries() + 1);
         updateIngestionStatus(ingestion, IngestionStatus.FAILED);
     }
 
-    private void updateIngestionStatus(IngestionOutbox ingestion, IngestionStatus status) {
+    private void updateIngestionStatus(IngestionJob ingestion, IngestionStatus status) {
         ingestion.setStatus(status);
-        resourceOutboxRepository.save(ingestion);
+        ingestionJobRepository.save(ingestion);
         log.info("Updated ingestion ID: {} status to: {}", ingestion.getId(), status);
     }
 

@@ -38,3 +38,6 @@ secrets*.yml
 output.json
 *.pem
 
+*.pem
+*.key
+jwt-keys/

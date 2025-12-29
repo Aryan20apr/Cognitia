@@ -29,6 +29,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.Filters;
 
 /**
  * Per-user quota and usage counters for a tenant.
@@ -46,6 +48,7 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
+@Filters(@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId"))
 @ToString
 public class UserQuota extends TenantAwareEntity {
 

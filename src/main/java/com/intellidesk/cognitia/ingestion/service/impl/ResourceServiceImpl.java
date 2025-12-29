@@ -1,34 +1,42 @@
 package com.intellidesk.cognitia.ingestion.service.impl;
 
 import java.io.IOException;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.intellidesk.cognitia.ingestion.models.dtos.ResourceMetadata;
-import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
-import com.intellidesk.cognitia.ingestion.models.entities.RawSouce;
 import com.intellidesk.cognitia.ingestion.models.dtos.CloudinaryUploadResult;
+import com.intellidesk.cognitia.ingestion.models.dtos.ResourceDetails;
+import com.intellidesk.cognitia.ingestion.models.dtos.ResourceMetadata;
+import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
+import com.intellidesk.cognitia.ingestion.models.entities.Resource;
 import com.intellidesk.cognitia.ingestion.models.enums.IngestionStatus;
 import com.intellidesk.cognitia.ingestion.models.enums.Status;
-import com.intellidesk.cognitia.ingestion.repository.ResourceOutboxRepository;
+import com.intellidesk.cognitia.ingestion.repository.IngestionJobRepository;
 import com.intellidesk.cognitia.ingestion.repository.ResourceRepository;
-import com.intellidesk.cognitia.ingestion.service.StorageService;
+import com.intellidesk.cognitia.ingestion.service.ResourceService;
 import com.intellidesk.cognitia.ingestion.service.uploadStrategy.FileUploadStrategy;
 import com.intellidesk.cognitia.ingestion.service.uploadStrategy.FileUploadStrategyFactory;
+import com.intellidesk.cognitia.ingestion.utils.ResourceMapper;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
 
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @AllArgsConstructor
 @Slf4j
-public class StorageServiceImple implements StorageService {
+public class ResourceServiceImpl implements ResourceService {
 
     private final FileUploadStrategyFactory fileUploadStrategyFactory;
-    private final ResourceOutboxRepository resourceOutboxRepository;
+    private final IngestionJobRepository resourceOutboxRepository;
     private final ResourceRepository resourceRepository;
+    private final ResourceMapper mapper;
 
     @Override
     @Transactional
@@ -39,7 +47,7 @@ public class StorageServiceImple implements StorageService {
         try {
            CloudinaryUploadResult cloudinaryUploadResult = fileUploadStrategy.upload(file);
            
-           RawSouce rawSouce = RawSouce.builder()
+           Resource rawSouce = Resource.builder()
                 .assetId(cloudinaryUploadResult.assetId())
                 .url(cloudinaryUploadResult.url())
                 .name(resourceMetadata.name())
@@ -51,7 +59,7 @@ public class StorageServiceImple implements StorageService {
                 .status(Status.UPLOADED)
                 .build();
 
-            IngestionOutbox ingestionOutbox = IngestionOutbox.builder()
+            IngestionJob ingestionOutbox = IngestionJob.builder()
                 .source(rawSouce)
                 .status(IngestionStatus.PENDING_PROCESSING)
                 .retries(0)
@@ -78,6 +86,21 @@ public class StorageServiceImple implements StorageService {
         }
         return originalFilename.substring(dotIndex); // includes the dot (.pdf, .txt, etc.)
 }
+
+    @Override
+    @Transactional
+    public Page<ResourceDetails> getResourceUploadHistory(int page, int size) {
+       
+        Pageable pageable = PageRequest.of(
+            page,
+            size,
+            Sort.by(Sort.Direction.DESC, "createdAt") // optional but recommended
+    );
+
+    Page<Resource> pageResult = resourceRepository.findAll(pageable);
+
+    return pageResult.map(res -> mapper.toDto(res));
+    }
 
     
 }

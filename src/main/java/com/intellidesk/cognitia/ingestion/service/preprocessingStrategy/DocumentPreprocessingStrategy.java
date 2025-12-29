@@ -10,8 +10,6 @@ import org.springframework.ai.transformer.splitter.TextSplitter;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
-import com.intellidesk.cognitia.ingestion.models.entities.RawSouce;
-
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -26,7 +24,7 @@ public class DocumentPreprocessingStrategy implements PreprocessingStrategy {
         this.documentWriter = documentWriter;
     }
 
-    public List<Document> preprocess(Resource resource, RawSouce rawSource ){
+    public List<Document> preprocess(Resource resource, com.intellidesk.cognitia.ingestion.models.entities.Resource rawSource ){
         
         TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(resource);
 

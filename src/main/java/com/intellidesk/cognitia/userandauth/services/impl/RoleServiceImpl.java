@@ -59,4 +59,21 @@ public class RoleServiceImpl implements RoleService{
         roleCreationDTO.setRoleId(newRole.getRoleId());
         return roleCreationDTO;
     }
+    @Override
+     @Transactional(readOnly = true)
+     public List<RoleCreationDTO> getAllRoles() {
+            List<Role> roles = roleRepository.findAll();
+            return roles.stream().map(role -> {
+                RoleCreationDTO dto = new RoleCreationDTO();
+                dto.setRoleId(role.getRoleId());
+                dto.setName(role.getRoleName());
+                Set<PermissionDTO> perms = role.getPermissions().stream()
+                    .map(p -> new PermissionDTO(p.getPermissionId(), p.getName()))
+                    .collect(Collectors.toSet());
+                dto.setPermissions(perms);
+                return dto;
+            }).collect(Collectors.toList());
+        }
+
+    
 }

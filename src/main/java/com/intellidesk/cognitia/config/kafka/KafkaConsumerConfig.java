@@ -15,8 +15,8 @@ import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 
 import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
-import com.intellidesk.cognitia.ingestion.models.entities.IngestionOutbox;
-import com.intellidesk.cognitia.ingestion.models.entities.RawSouce;
+import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
+import com.intellidesk.cognitia.ingestion.models.entities.Resource;
 
 
 
@@ -33,7 +33,7 @@ public class KafkaConsumerConfig {
     private String analyticsUsageEventsGroupId;
 
     @Bean
-    public ConsumerFactory<String, IngestionOutbox> resourceConsumerFactory(String groupId){
+    public ConsumerFactory<String, IngestionJob> resourceConsumerFactory(String groupId){
        Map<String, Object> props = new HashMap<>();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
     props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
@@ -42,13 +42,13 @@ public class KafkaConsumerConfig {
     props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class.getName()); // Add this line
     props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
     props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.intellidesk.cognitia.ingestion.models.entity");
-    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, RawSouce.class.getName());
+    props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, Resource.class.getName());
     return new DefaultKafkaConsumerFactory<>(props);
 }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, IngestionOutbox> ingestionKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String,IngestionOutbox> factory = new ConcurrentKafkaListenerContainerFactory<>();
+    public ConcurrentKafkaListenerContainerFactory<String, IngestionJob> ingestionKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String,IngestionJob> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(resourceConsumerFactory(ingestionGroupId));
         return factory;
     }

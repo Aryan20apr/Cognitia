@@ -4,15 +4,12 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import com.intellidesk.cognitia.ingestion.models.enums.IngestionStatus;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -35,7 +32,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-public class IngestionOutbox {
+public class IngestionJob {
 
     @Id
     @GeneratedValue(strategy=GenerationType.UUID)
@@ -43,7 +40,7 @@ public class IngestionOutbox {
 
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "resId", referencedColumnName = "resId")
-    private RawSouce source;
+    private Resource source;
 
     @Column(name = "status", nullable = false)
     private IngestionStatus status;
@@ -75,7 +72,7 @@ public class IngestionOutbox {
             return false;
         if (getClass() != obj.getClass())
             return false;
-        IngestionOutbox other = (IngestionOutbox) obj;
+        IngestionJob other = (IngestionJob) obj;
         if (id == null) {
             if (other.id != null)
                 return false;

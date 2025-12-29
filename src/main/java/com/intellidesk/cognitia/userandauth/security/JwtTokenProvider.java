@@ -14,6 +14,7 @@ import org.apache.http.auth.AuthenticationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 
 import com.intellidesk.cognitia.userandauth.models.entities.User;
@@ -35,13 +36,15 @@ public class JwtTokenProvider {
     
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
-    private final long accessTokenMs = Duration.ofMinutes(2).toMillis();
+    private final long accessTokenMs = Duration.ofMinutes(60).toMillis();
     private final String issuer = "my-monolith";
 
     public JwtTokenProvider(@Value("${jwt.private-key.path}") String privKeyPath,
-                            @Value("${jwt.public-key.path}") String pubKeyPath) {
-        this.privateKey = PemUtils.loadPrivateKey(privKeyPath);
-        this.publicKey = PemUtils.loadPublicKey(pubKeyPath);
+                            @Value("${jwt.public-key.path}") String pubKeyPath,  ResourceLoader resourceLoader) {
+
+                                PemUtils pemUtils = new PemUtils(resourceLoader);
+        this.privateKey = pemUtils.loadPrivateKey(privKeyPath);
+        this.publicKey = pemUtils.loadPublicKey(pubKeyPath);
     }
 
     public String createAccessToken(User user) {
