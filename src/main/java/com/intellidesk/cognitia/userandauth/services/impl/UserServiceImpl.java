@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +25,6 @@ import com.intellidesk.cognitia.userandauth.repository.UserRepository;
 import com.intellidesk.cognitia.userandauth.services.UserService;
 import com.intellidesk.cognitia.utils.Utils;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
-
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,14 +66,14 @@ public class UserServiceImpl implements UserService {
             throw new ApiException("Company does not exist with the provided id", userCreationDTO.companyId());
         }
         Role role = new Role();
-        if (userCreationDTO.roleCreationDTO().getName() == RoleEnum.SUPER_ADMIN.toString()) {
+        if (userCreationDTO.roleDetails().getName() == RoleEnum.SUPER_ADMIN.toString()) {
             List<Permission> permissions = permissionsRepository.getSuperAdminPermissions();
             role.setPermissions(new HashSet<>(permissions));
-            role.setRoleName(userCreationDTO.roleCreationDTO().getName());
+            role.setRoleName(userCreationDTO.roleDetails().getName());
             role.setTenantId(tenant.get().getId());
             roleRepository.save(role);
         } else{
-           Optional<Role> optionalRole =  roleRepository.findById(userCreationDTO.roleCreationDTO().getRoleId());
+           Optional<Role> optionalRole =  roleRepository.findById(userCreationDTO.roleDetails().getRoleId());
            if(optionalRole.isEmpty()){
             throw new ApiException("Invalid role assigned");
            }

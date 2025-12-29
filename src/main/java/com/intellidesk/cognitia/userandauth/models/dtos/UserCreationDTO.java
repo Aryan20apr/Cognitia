@@ -9,6 +9,6 @@ public record UserCreationDTO(
     @Schema(description = "Email") String email,
     @Schema(description = "Company / tenant id") String companyId,
     @Schema(description = "Phone number") String phoneNumber,
-    @Schema(description = "Role payload") RoleCreationDTO roleCreationDTO ) {
+    @Schema(description = "Role payload") RoleCreationDTO roleDetails ) {
     
 }
