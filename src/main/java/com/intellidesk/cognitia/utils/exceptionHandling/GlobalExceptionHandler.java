@@ -1,11 +1,13 @@
 package com.intellidesk.cognitia.utils.exceptionHandling;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
@@ -135,5 +137,27 @@ public ResponseEntity<ExceptionApiResponse<?>> handleMissingServletRequestPartEx
             .code(400)
             .build();
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+}
+
+@ExceptionHandler(MethodArgumentNotValidException.class)
+public ResponseEntity<ExceptionApiResponse<Map<String, String>>> handleValidationErrors(
+        MethodArgumentNotValidException ex) {
+
+    Map<String, String> errors = new HashMap<>();
+
+    ex.getBindingResult()
+      .getFieldErrors()
+      .forEach(error ->
+          errors.put(error.getField(), error.getDefaultMessage())
+      );
+
+    ExceptionApiResponse<Map<String, String>> response =
+            ExceptionApiResponse.<Map<String, String>>builder()
+            .message("Validation failed")
+            .data(errors)
+            .code(400)
+            .build();
+
+    return ResponseEntity.badRequest().body(response);
 }
 }

@@ -53,6 +53,14 @@ public class UserServiceImpl implements UserService {
        
         log.info("[UserServiceImpl] [createUser] UserCreationDTO received: {}", userCreationDTO);
         User user = new User();
+
+        String email = userCreationDTO.email();
+        String phone = userCreationDTO.phoneNumber();
+
+        if(userRepository.existsByEmailOrPhoneNumber(email, phone)){
+            throw new ApiException("User already exists with the provided email or phone number");
+        }
+
         UUID companyId = TenantContext.getTenantId();
         if (companyId == null) {
             // Fallback to value from DTO

@@ -20,6 +20,7 @@ import com.intellidesk.cognitia.userandauth.services.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -32,8 +33,8 @@ public class UserController {
 
     @Operation(summary = "Create a new user (Requires SUPER_ADMIN)")
     @PostMapping()
-    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
-    public ResponseEntity<ApiResponse<UserDetailsDTO>> createUser(@RequestBody UserCreationDTO userCreationDTO) {
+    @PreAuthorize("hasAuthority('PERM_USER_CREATE')")
+    public ResponseEntity<ApiResponse<UserDetailsDTO>> createUser(@Valid @RequestBody UserCreationDTO userCreationDTO) {
         
         UserDetailsDTO userDetailsDTO =  userService.createUser(userCreationDTO);
         
@@ -44,6 +45,7 @@ public class UserController {
     }
     @Operation(summary = "List all users")
     @GetMapping()
+    @PreAuthorize("hasAuthority('PERM_USER_READ')")
     public ResponseEntity<ApiResponse<List<UserDetailsDTO>>> getAllUsers() {
         List<UserDetailsDTO> users = userService.getAllUsers();
         ApiResponse<List<UserDetailsDTO>> apiResponse = new ApiResponse<>(

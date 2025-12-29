@@ -1,13 +1,13 @@
 package com.intellidesk.cognitia.userandauth.security;
 
-import org.springframework.security.core.userdetails.UserDetails;
-
-import com.intellidesk.cognitia.userandauth.models.entities.User;
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import java.util.Collection;
-import java.util.stream.Collectors;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import com.intellidesk.cognitia.userandauth.models.entities.User;
 
 public class CustomUserDetails implements UserDetails {
 
@@ -24,7 +24,7 @@ public class CustomUserDetails implements UserDetails {
                 .map(p -> new SimpleGrantedAuthority("PERM_" + p.getName()))
                 .collect(Collectors.toSet());
 
-        authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().getRoleId()));
+        authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().getRoleName()));
         return authorities;
     }
 
