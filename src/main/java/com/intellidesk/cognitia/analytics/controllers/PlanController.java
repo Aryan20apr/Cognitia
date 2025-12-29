@@ -78,7 +78,7 @@ public class PlanController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden")
     })
     @PostMapping
-    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('USER_CREATE')")
     public ResponseEntity<ApiResponse<PlanDTO>> createPlan(
             @RequestBody PlanDTO planDTO) {
         return ResponseEntity.ok(ApiResponse.<PlanDTO>builder()

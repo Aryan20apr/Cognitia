@@ -20,4 +20,6 @@ public interface UserRepository extends JpaRepository<User, UUID>{
     @EntityGraph(attributePaths = {"role", "role.permissions"})
     @Query("SELECT u FROM User u WHERE u.email = :email")
     Optional<User> findByEmailWithRoleAndPermissions(@Param("email") String email);
+
+    boolean existsByEmailOrPhoneNumber(String email, String phoneNumber);
 }
