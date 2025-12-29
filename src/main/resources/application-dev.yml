@@ -2,11 +2,12 @@ server:
   port: 8082
 
 spring:
-  # flyway:
-  #   enabled: true
-  #   default-schema: migrations
-  #   schemas: public
-  #   locations: classpath:db/migration/postgresql
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    schemas: public
+    locations: classpath:db/migration
   config:
     import: optional:secrets-dev.yml
   data:
@@ -58,7 +59,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -67,7 +68,7 @@ spring:
         order_updates: true
         order_inserts: true
         default_schema: public
-    generate-ddl: true
+    generate-ddl: false
     show-sql: true
 
   kafka:
