@@ -3,6 +3,7 @@ package com.intellidesk.cognitia.chat.service;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -14,6 +15,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.intellidesk.cognitia.chat.models.dtos.ChatMessageDTO;
+import com.intellidesk.cognitia.chat.models.dtos.ChatThreadDTO;
 import com.intellidesk.cognitia.chat.models.dtos.CustomChatResponse;
 import com.intellidesk.cognitia.chat.models.dtos.UserMessageDTO;
 import com.intellidesk.cognitia.chat.models.entities.ChatMessage;
@@ -37,6 +40,39 @@ public class ChatService {
     private final ChatMessageRepository messageRepository;
     private final VectorStore vectorStore;
     private final ChatMemoryHydrator chatMemoryHydrator;
+
+
+    @Transactional
+public ChatThreadDTO getThread(String threadId){
+    ChatThread thread = threadRepository.findById(UUID.fromString(threadId))
+        .orElseThrow(() -> new RuntimeException("Thread not found"));
+    
+    return ChatThreadDTO.builder()
+        .id(thread.getId())
+        .title(thread.getTitle())
+        .userId(thread.getUser() != null ? thread.getUser().getId() : null)
+        .createdAt(thread.getCreatedAt())
+        .messages(thread.getMessages().stream()
+            .map(message -> ChatMessageDTO.builder()
+                .id(message.getId())
+                .content(message.getContent())
+                .role(message.getSender() != null ? message.getSender().name() : null)
+                .createdAt(message.getCreatedAt() != null ? message.getCreatedAt().toInstant() : null)
+                .build())
+            .collect(Collectors.toList()))
+        .build();
+}
+
+    @Transactional
+    public List<ChatThreadDTO> getAllThreads(){
+        return threadRepository.findAll().stream()
+            .map(thread -> ChatThreadDTO.builder()
+                .id(thread.getId())
+                .title(thread.getTitle())
+                .createdAt(thread.getCreatedAt())
+                .build())
+            .collect(Collectors.toList());
+    }
 
 
     @Transactional
@@ -270,7 +306,8 @@ public class ChatService {
                         messageRepository.save(aiMsg);
                         ctx.thread().addMessage(aiMsg);
                         threadRepository.save(ctx.thread());
-                    });
+                    })
+                    .concatWith(Mono.just("[DONE]\n\n"));
         });
     }
     }
