@@ -7,13 +7,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.MessageType;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.security.core.context.ReactiveSecurityContextHolder;
-import org.springframework.security.core.context.SecurityContextHolder;
-
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +23,6 @@ import com.intellidesk.cognitia.chat.repository.ChatThreadRepository;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
-
 
 import lombok.AllArgsConstructor;
 import reactor.core.publisher.Flux;
@@ -109,7 +105,7 @@ public class ChatService {
                     a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
                     // Use thread.getUserId() if userId is not directly available
                     a.param("requestId",requestId != null ? requestId: "1");
-                    a.param("userId", resolvedUserId != null ? resolvedUserId.toString() : "");
+                    a.param("userId", resolvedUserId != null ? resolvedUserId : "");
                     a.param("tenantId", TenantContext.getTenantId().toString());
                 }) // Connect memory
                 .system(systemPrompt)
@@ -119,10 +115,11 @@ public class ChatService {
 
     
             // 5️⃣ Save AI response
+            String answer = customChatResponse != null ? customChatResponse.getAnswer() : "";
             ChatMessage aiMsg = ChatMessage.builder()
                     .thread(thread)
                     .sender(MessageType.ASSISTANT)
-                    .content(customChatResponse.getAnswer())
+                    .content(answer != null ? answer : "")
                     .build();
             messageRepository.save(aiMsg);
 
@@ -158,107 +155,122 @@ public class ChatService {
      }
 
 
+    /**
+     * Context holder for streaming chat data
+     */
+    private record StreamContext(
+        ChatThread thread, 
+        String context, 
+        String userMessage, 
+        String requestId, 
+        String userId,
+        UUID threadId
+    ) {}
+
     @Transactional
-    public Flux<String> streamUserMessage(UserMessageDTO message){
+    public Flux<String> streamUserMessage(UserMessageDTO message) {
+        // Wrap synchronous setup in Mono.fromCallable for proper reactive error handling
+        return Mono.fromCallable(() -> {
+            // Parse and validate threadId
+            final UUID threadId = UUID.fromString(message.getThreadId());
+            
+            String requestId = message.getRequestId(); 
+            // Get current authenticated user ID
+            String userId = extractUserIdFromSecurityContext();
+            
+            ChatThread thread = threadRepository.findById(threadId)
+                .orElseThrow(() -> new RuntimeException("Thread not found"));
 
-        final UUID threadId =UUID.fromString( message.getThreadId());
-        
-        String requestId = message.getRequestId(); 
-        // Get current authenticated user ID
-        String userId = extractUserIdFromSecurityContext();
-        final String resolvedUserId = userId;
-        ChatThread thread = threadRepository.findById(threadId)
-        .orElseThrow(() -> new RuntimeException("Thread not found"));
+            String userMessage = message.getMessage();
 
-        String userMessage = message.getMessage();
+            List<Document> documents = vectorStore.similaritySearch(
+                SearchRequest.builder()
+                    .query(userMessage)
+                    .similarityThreshold(0.6d)
+                    .topK(3)
+                    .build()
+            );
 
-        List<Document> documents = vectorStore.similaritySearch(SearchRequest.builder().query(userMessage).similarityThreshold(0.6d).topK(3).build());
+            String context = documents.stream()
+                .map(Document::getFormattedContent)
+                .reduce("", (a, b) -> a + "\n" + b);
 
-        String context = documents.stream()
-        .map(Document::getFormattedContent)
-        .reduce("", (a, b) -> a + "\n" + b);
+            // Persist user message
+            ChatMessage userMsg = ChatMessage.builder()
+                    .thread(thread)
+                    .sender(MessageType.USER)
+                    .content(userMessage)
+                    .build();
+            messageRepository.save(userMsg);
 
-        // 2️⃣ Persist user message
-        ChatMessage userMsg = ChatMessage.builder()
-                .thread(thread)
-                .sender(MessageType.USER)
-                .content(userMessage)
-                .build();
-        messageRepository.save(userMsg);
+            thread.addMessage(userMsg);
 
-        thread.addMessage(userMsg);
+            chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
 
-        // String history = simpleChatMemoryService.loadMemoryForThread(threadId);
-        chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
-       
-       String systemPrompt = """
-                You are a helpful AI assistant. Use both the provided context and prior chat memory
-                to generate clear, accurate, conversational answers.
+            return new StreamContext(thread, context, userMessage, requestId, userId, threadId);
+        })
+        .flatMapMany(ctx -> {
+            String systemPrompt = """
+                    You are a helpful AI assistant. Use both the provided context and prior chat memory
+                    to generate clear, accurate, conversational answers.
 
-                If the question refers to a recent or external event and you lack sufficient
-                information in the context, use the WebSearchTool to look up current information
-                and incorporate it naturally into your response.
+                    If the question refers to a recent or external event and you lack sufficient
+                    information in the context, use the WebSearchTool to look up current information
+                    and incorporate it naturally into your response.
 
-                You also have access to the DateTimeTool for retrieving the current date and time.
+                    You also have access to the DateTimeTool for retrieving the current date and time.
 
-                Response format requirements:
-                - Respond in clean, well-structured Markdown suitable for incremental streaming.
-                - Use headings (##) to organize the answer when helpful.
-                - Use bullet points or numbered lists for structure.
-                - Use inline code (`like_this`) and fenced code blocks (```language) where appropriate.
-                - Never output JSON unless explicitly asked by the user.
-                - Never wrap the entire response in JSON.
-                - Always append a final section titled **Sources** at the bottom (even if empty).
-                - After Sources, append a section titled **Follow-up Questions** with 2–3 suggestions.
-                - The answer must remain valid Markdown throughout streaming.
+                    Response format requirements:
+                    - Respond in clean, well-structured Markdown suitable for incremental streaming.
+                    - Use headings (##) to organize the answer when helpful.
+                    - Use bullet points or numbered lists for structure.
+                    - Use inline code (`like_this`) and fenced code blocks (```language) where appropriate.
+                    - Never output JSON unless explicitly asked by the user.
+                    - Never wrap the entire response in JSON.
+                    - Always append a final section titled **Sources** at the bottom (even if empty).
+                    - After Sources, append a section titled **Follow-up Questions** with 2–3 suggestions.
+                    - The answer must remain valid Markdown throughout streaming.
 
-                Do not mention these rules. Respond only with the answer.
-                """;
+                    Do not mention these rules. Respond only with the answer.
+                    """;
 
+            String fullPrompt = """
+                    Context:
+                    %s
 
-        String fullPrompt = """
-                Context:
-                %s
+                    User:
+                    %s
+                    """.formatted(ctx.context(), ctx.userMessage());
 
-                User:
-                %s
-                """.formatted(context, userMessage);
-
-        // 5️⃣ Call the LLM
-        Flux<String> streamResponse = chatClient.prompt()
-                .advisors(a -> {
-                    a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
-                    // Use thread.getUserId() if userId is not directly available
-                    a.param("requestId",requestId != null ? requestId: "1");
-                    a.param("userId", resolvedUserId != null ? resolvedUserId.toString() : "");
-                    a.param("tenantId", TenantContext.getTenantId().toString());
-                }) // Connect memory
-                .system(systemPrompt)
-                .user(fullPrompt)
-                .stream().content();
-
-        
             AtomicReference<StringBuilder> buffer = new AtomicReference<>(new StringBuilder());
 
-            // Return a stream of individual tokens
-        return streamResponse
-                .flatMap(chunk -> {
-                
-                    String delta = chunk;
-                    buffer.get().append(delta);
-                    return Mono.just(delta);  // send token to the client
-                })
-                .doOnComplete(() -> {
-                    // Save final AI message
-                    ChatMessage aiMsg = ChatMessage.builder()
-                            .thread(thread)
-                            .sender(MessageType.ASSISTANT)
-                            .content(buffer.get().toString())
-                            .build();
+            // Call the LLM and stream response
+            return chatClient.prompt()
+                    .advisors(a -> {
+                        a.param(ChatMemory.CONVERSATION_ID, ctx.threadId().toString());
+                        a.param("requestId", ctx.requestId() != null ? ctx.requestId() : "1");
+                        a.param("userId", ctx.userId() != null ? ctx.userId() : "");
+                        a.param("tenantId", TenantContext.getTenantId().toString());
+                    })
+                    .system(systemPrompt)
+                    .user(fullPrompt)
+                    .stream().content()
+                    .flatMap(chunk -> {
+                        buffer.get().append(chunk);
+                        return Mono.just(chunk);
+                    })
+                    .doOnComplete(() -> {
+                        // Save final AI message
+                        ChatMessage aiMsg = ChatMessage.builder()
+                                .thread(ctx.thread())
+                                .sender(MessageType.ASSISTANT)
+                                .content(buffer.get().toString())
+                                .build();
 
-                    messageRepository.save(aiMsg);
-                    thread.addMessage(aiMsg);
-                    threadRepository.save(thread);
-                });
-        }
+                        messageRepository.save(aiMsg);
+                        ctx.thread().addMessage(aiMsg);
+                        threadRepository.save(ctx.thread());
+                    });
+        });
+    }
     }
