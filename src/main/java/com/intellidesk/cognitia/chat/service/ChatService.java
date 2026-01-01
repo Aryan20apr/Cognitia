@@ -42,59 +42,76 @@ public class ChatService {
     private final VectorStore vectorStore;
     private final ChatMemoryHydrator chatMemoryHydrator;
 
+    @Transactional
+    public ChatThreadDTO getThread(String threadId) {
+        ChatThread thread = threadRepository.findById(UUID.fromString(threadId))
+                .orElseThrow(() -> new RuntimeException("Thread not found"));
+
+        return ChatThreadDTO.builder()
+                .id(thread.getId())
+                .title(thread.getTitle())
+                .userId(thread.getUser() != null ? thread.getUser().getId() : null)
+                .createdAt(thread.getCreatedAt())
+                .messages(thread.getMessages().stream()
+                        .map(message -> ChatMessageDTO.builder()
+                        .id(message.getId())
+                        .content(message.getContent())
+                        .role(message.getSender() != null ? message.getSender().name() : null)
+                        .createdAt(message.getCreatedAt() != null ? message.getCreatedAt().toInstant() : null)
+                        .build())
+                        .collect(Collectors.toList()))
+                .build();
+    }
 
     @Transactional
-public ChatThreadDTO getThread(String threadId){
-    ChatThread thread = threadRepository.findById(UUID.fromString(threadId))
-        .orElseThrow(() -> new RuntimeException("Thread not found"));
-    
-    return ChatThreadDTO.builder()
-        .id(thread.getId())
-        .title(thread.getTitle())
-        .userId(thread.getUser() != null ? thread.getUser().getId() : null)
-        .createdAt(thread.getCreatedAt())
-        .messages(thread.getMessages().stream()
-            .map(message -> ChatMessageDTO.builder()
-                .id(message.getId())
-                .content(message.getContent())
-                .role(message.getSender() != null ? message.getSender().name() : null)
-                .createdAt(message.getCreatedAt() != null ? message.getCreatedAt().toInstant() : null)
-                .build())
-            .collect(Collectors.toList()))
-        .build();
-}
+    public Boolean updateThread(String threadId, ChatThreadDTO chatThreadDTO) {
+        UUID id = UUID.fromString(threadId);
+
+        int rowsUpdated = threadRepository.updateTitleById(id, chatThreadDTO.getTitle());
+
+        if (rowsUpdated == 0) {
+            throw new RuntimeException("Thread not found");
+        }
+
+        return true;
+    }
 
     @Transactional
-    public List<ChatThreadDTO> getAllThreads(){
+    public List<ChatThreadDTO> getAllThreads() {
         return threadRepository.findAll().stream()
-            .map(thread -> ChatThreadDTO.builder()
+                .map(thread -> ChatThreadDTO.builder()
                 .id(thread.getId())
                 .title(thread.getTitle())
                 .createdAt(thread.getCreatedAt())
                 .build())
-            .collect(Collectors.toList());
+                .collect(Collectors.toList());
     }
 
+    @Transactional
+    public void deleteThread(String threadId){
+        if(threadRepository.existsById(UUID.fromString(threadId)))
+        threadRepository.deleteById(UUID.fromString(threadId));
+    }
 
     @Transactional
-    public CustomChatResponse processUserMessage(UserMessageDTO message){
+    public CustomChatResponse processUserMessage(UserMessageDTO message) {
 
-        final UUID threadId =UUID.fromString( message.getThreadId());
-        
-        String requestId = message.getRequestId(); 
+        final UUID threadId = UUID.fromString(message.getThreadId());
+
+        String requestId = message.getRequestId();
         // Get current authenticated user ID
         String userId = extractUserIdFromSecurityContext();
         final String resolvedUserId = userId;
         ChatThread thread = threadRepository.findById(threadId)
-        .orElseThrow(() -> new RuntimeException("Thread not found"));
+                .orElseThrow(() -> new RuntimeException("Thread not found"));
 
         String userMessage = message.getMessage();
 
         List<Document> documents = vectorStore.similaritySearch(SearchRequest.builder().query(userMessage).similarityThreshold(0.6d).topK(3).build());
 
         String context = documents.stream()
-        .map(Document::getFormattedContent)
-        .reduce("", (a, b) -> a + "\n" + b);
+                .map(Document::getFormattedContent)
+                .reduce("", (a, b) -> a + "\n" + b);
 
         // 2️⃣ Persist user message
         ChatMessage userMsg = ChatMessage.builder()
@@ -108,7 +125,7 @@ public ChatThreadDTO getThread(String threadId){
 
         // String history = simpleChatMemoryService.loadMemoryForThread(threadId);
         chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
-       
+
         String systemPrompt = """
                  You are a helpful assistant. Use both context and prior chat memory
                 to generate clear and accurate answers.
@@ -141,7 +158,7 @@ public ChatThreadDTO getThread(String threadId){
                 .advisors(a -> {
                     a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
                     // Use thread.getUserId() if userId is not directly available
-                    a.param("requestId",requestId != null ? requestId: "1");
+                    a.param("requestId", requestId != null ? requestId : "1");
                     a.param("userId", resolvedUserId != null ? resolvedUserId : "");
                     a.param("tenantId", TenantContext.getTenantId().toString());
                 }) // Connect memory
@@ -150,23 +167,22 @@ public ChatThreadDTO getThread(String threadId){
                 .call()
                 .entity(CustomChatResponse.class);
 
-    
-            // 5️⃣ Save AI response
-            String answer = customChatResponse != null ? customChatResponse.getAnswer() : "";
-            ChatMessage aiMsg = ChatMessage.builder()
-                    .thread(thread)
-                    .sender(MessageType.ASSISTANT)
-                    .content(answer != null ? answer : "")
-                    .build();
-            messageRepository.save(aiMsg);
+        // 5️⃣ Save AI response
+        String answer = customChatResponse != null ? customChatResponse.getAnswer() : "";
+        ChatMessage aiMsg = ChatMessage.builder()
+                .thread(thread)
+                .sender(MessageType.ASSISTANT)
+                .content(answer != null ? answer : "")
+                .build();
+        messageRepository.save(aiMsg);
 
-            thread.addMessage(aiMsg);
-            threadRepository.save(thread);
-    
-            return customChatResponse;
-        }
+        thread.addMessage(aiMsg);
+        threadRepository.save(thread);
 
-     public ChatThread createNewThread(){
+        return customChatResponse;
+    }
+
+    public ChatThread createNewThread() {
         User user = new User();
         user.setId(UUID.fromString(extractUserIdFromSecurityContext()));
         ChatThread chatThread = new ChatThread();
@@ -174,10 +190,11 @@ public ChatThreadDTO getThread(String threadId){
         chatThread.setUser(user);
         threadRepository.save(chatThread);
         return chatThread;
-     }   
-     String extractUserIdFromSecurityContext(){
+    }
+
+    String extractUserIdFromSecurityContext() {
         String userId = null;
-        
+
         try {
             var authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails) {
@@ -189,20 +206,21 @@ public ChatThreadDTO getThread(String threadId){
             System.err.println("Could not extract userId from SecurityContext: " + e.getMessage());
         }
         return userId;
-     }
-
+    }
 
     /**
      * Context holder for streaming chat data
      */
     private record StreamContext(
-        ChatThread thread, 
-        String context, 
-        String userMessage, 
-        String requestId, 
-        String userId,
-        UUID threadId
-    ) {}
+            ChatThread thread,
+            String context,
+            String userMessage,
+            String requestId,
+            String userId,
+            UUID threadId
+            ) {
+
+    }
 
     @Transactional
     public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
@@ -210,27 +228,27 @@ public ChatThreadDTO getThread(String threadId){
         return Mono.fromCallable(() -> {
             // Parse and validate threadId
             final UUID threadId = UUID.fromString(message.getThreadId());
-            
-            String requestId = message.getRequestId(); 
+
+            String requestId = message.getRequestId();
             // Get current authenticated user ID
             String userId = extractUserIdFromSecurityContext();
-            
+
             ChatThread thread = threadRepository.findById(threadId)
-                .orElseThrow(() -> new RuntimeException("Thread not found"));
+                    .orElseThrow(() -> new RuntimeException("Thread not found"));
 
             String userMessage = message.getMessage();
 
             List<Document> documents = vectorStore.similaritySearch(
-                SearchRequest.builder()
-                    .query(userMessage)
-                    .similarityThreshold(0.6d)
-                    .topK(3)
-                    .build()
+                    SearchRequest.builder()
+                            .query(userMessage)
+                            .similarityThreshold(0.6d)
+                            .topK(3)
+                            .build()
             );
 
             String context = documents.stream()
-                .map(Document::getFormattedContent)
-                .reduce("", (a, b) -> a + "\n" + b);
+                    .map(Document::getFormattedContent)
+                    .reduce("", (a, b) -> a + "\n" + b);
 
             // Persist user message
             ChatMessage userMsg = ChatMessage.builder()
@@ -246,8 +264,8 @@ public ChatThreadDTO getThread(String threadId){
 
             return new StreamContext(thread, context, userMessage, requestId, userId, threadId);
         })
-        .flatMapMany(ctx -> {
-            String systemPrompt = """
+                .flatMapMany(ctx -> {
+                    String systemPrompt = """
                     You are a helpful AI assistant. Use both the provided context and prior chat memory
                     to generate clear, accurate, conversational answers.
 
@@ -271,7 +289,7 @@ public ChatThreadDTO getThread(String threadId){
                     Do not mention these rules. Respond only with the answer.
                     """;
 
-            String fullPrompt = """
+                    String fullPrompt = """
                     Context:
                     %s
 
@@ -279,42 +297,42 @@ public ChatThreadDTO getThread(String threadId){
                     %s
                     """.formatted(ctx.context(), ctx.userMessage());
 
-            AtomicReference<StringBuilder> buffer = new AtomicReference<>(new StringBuilder());
+                    AtomicReference<StringBuilder> buffer = new AtomicReference<>(new StringBuilder());
 
-            // Call the LLM and stream response
-            return chatClient.prompt()
-                    .advisors(a -> {
-                        a.param(ChatMemory.CONVERSATION_ID, ctx.threadId().toString());
-                        a.param("requestId", ctx.requestId() != null ? ctx.requestId() : "1");
-                        a.param("userId", ctx.userId() != null ? ctx.userId() : "");
-                        a.param("tenantId", TenantContext.getTenantId().toString());
-                    })
-                    .system(systemPrompt)
-                    .user(fullPrompt)
-                    .stream().content()
-                    .flatMap(chunk -> {
-                        buffer.get().append(chunk);
-                        return Mono.just(
-                            ServerSentEvent.builder(chunk).build()
-                        );
-                    })
-                    .doOnComplete(() -> {
-                        // Save final AI message
-                        ChatMessage aiMsg = ChatMessage.builder()
-                                .thread(ctx.thread())
-                                .sender(MessageType.ASSISTANT)
-                                .content(buffer.get().toString())
-                                .build();
+                    // Call the LLM and stream response
+                    return chatClient.prompt()
+                            .advisors(a -> {
+                                a.param(ChatMemory.CONVERSATION_ID, ctx.threadId().toString());
+                                a.param("requestId", ctx.requestId() != null ? ctx.requestId() : "1");
+                                a.param("userId", ctx.userId() != null ? ctx.userId() : "");
+                                a.param("tenantId", TenantContext.getTenantId().toString());
+                            })
+                            .system(systemPrompt)
+                            .user(fullPrompt)
+                            .stream().content()
+                            .flatMap(chunk -> {
+                                buffer.get().append(chunk);
+                                return Mono.just(
+                                        ServerSentEvent.builder(chunk).build()
+                                );
+                            })
+                            .doOnComplete(() -> {
+                                // Save final AI message
+                                ChatMessage aiMsg = ChatMessage.builder()
+                                        .thread(ctx.thread())
+                                        .sender(MessageType.ASSISTANT)
+                                        .content(buffer.get().toString())
+                                        .build();
 
-                        messageRepository.save(aiMsg);
-                        ctx.thread().addMessage(aiMsg);
-                        threadRepository.save(ctx.thread());
-                    })
-                    .concatWith(
-                        Mono.just(
-                           ServerSentEvent.builder("[DONE]").build()
-                        )
-                    );
-        });
+                                messageRepository.save(aiMsg);
+                                ctx.thread().addMessage(aiMsg);
+                                threadRepository.save(ctx.thread());
+                            })
+                            .concatWith(
+                                    Mono.just(
+                                            ServerSentEvent.builder("[DONE]").build()
+                                    )
+                            );
+                });
     }
-    }
+}
