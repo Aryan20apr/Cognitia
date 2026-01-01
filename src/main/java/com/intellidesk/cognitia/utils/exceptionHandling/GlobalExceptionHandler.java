@@ -13,12 +13,35 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
+import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.TenantNotFoundException;
 
 import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(TenantNotFoundException.class)
+    public ResponseEntity<ExceptionApiResponse<?>> handleTenantNotFoundException(TenantNotFoundException ex) {
+        log.warn("[GlobalExceptionHandler] : [handleTenantNotFoundException] : {}", ex.getMessage());
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message(ex.getMessage())
+                .data(null)
+                .code(404)
+                .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ExceptionApiResponse<?>> handleIllegalArgumentException(IllegalArgumentException ex) {
+        log.warn("[GlobalExceptionHandler] : [handleIllegalArgumentException] : {}", ex.getMessage());
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message(ex.getMessage())
+                .data(null)
+                .code(400)
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ExceptionApiResponse<?>> handleAllRuntimeExcption(RuntimeException runtimeException) {
