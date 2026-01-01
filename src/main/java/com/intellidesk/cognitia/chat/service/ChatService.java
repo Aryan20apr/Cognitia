@@ -11,6 +11,7 @@ import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -204,7 +205,7 @@ public ChatThreadDTO getThread(String threadId){
     ) {}
 
     @Transactional
-    public Flux<String> streamUserMessage(UserMessageDTO message) {
+    public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
         // Wrap synchronous setup in Mono.fromCallable for proper reactive error handling
         return Mono.fromCallable(() -> {
             // Parse and validate threadId
@@ -293,7 +294,9 @@ public ChatThreadDTO getThread(String threadId){
                     .stream().content()
                     .flatMap(chunk -> {
                         buffer.get().append(chunk);
-                        return Mono.just(chunk);
+                        return Mono.just(
+                            ServerSentEvent.builder(chunk).build()
+                        );
                     })
                     .doOnComplete(() -> {
                         // Save final AI message
@@ -307,7 +310,11 @@ public ChatThreadDTO getThread(String threadId){
                         ctx.thread().addMessage(aiMsg);
                         threadRepository.save(ctx.thread());
                     })
-                    .concatWith(Mono.just("[DONE]\n\n"));
+                    .concatWith(
+                        Mono.just(
+                           ServerSentEvent.builder("[DONE]").build()
+                        )
+                    );
         });
     }
     }
