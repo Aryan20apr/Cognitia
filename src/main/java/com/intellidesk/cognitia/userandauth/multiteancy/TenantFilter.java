@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 import com.intellidesk.cognitia.userandauth.services.TenantService;
+import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.TenantNotFoundException;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -64,14 +65,17 @@ public class TenantFilter implements Filter {
 
         // Only handle tenant context if x-tenant-id header is present
         if (tenantId != null && !tenantId.trim().isEmpty()) {
+            // Validate UUID format - throws IllegalArgumentException if invalid
+            UUID parsedTenantId = UUID.fromString(tenantId);
+
             Boolean exists = tenantService.checkIfExists(tenantId);
 
-            if(!exists){
-                log.info("[TenantFilter] : [doFilter] : Invalid company id passed in header");
-                throw new RuntimeException("Company does not exists with company id: "+tenantId);
+            if (!exists) {
+                log.warn("[TenantFilter] : [doFilter] : Tenant not found with id: {}", tenantId);
+                throw new TenantNotFoundException("Company does not exist with company id: " + tenantId);
             }
 
-            TenantContext.setTenantId(UUID.fromString(tenantId));
+            TenantContext.setTenantId(parsedTenantId);
             try {
                 chain.doFilter(request, response);
             } finally {

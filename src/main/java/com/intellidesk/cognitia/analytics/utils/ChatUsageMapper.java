@@ -17,9 +17,8 @@ public interface ChatUsageMapper {
     ChatUsageDetailsDTO toDTO(ChatUsage entity);
 
     // ---------- DTO → Entity ----------
-    @InheritInverseConfiguration
     @Mapping(target = "user", ignore = true)
-    // @Mapping(target = "tenant", ignore = true)
     @Mapping(target = "thread", ignore = true)
+    @Mapping(target = "processedAt", ignore = true)
     ChatUsage toEntity(ChatUsageDetailsDTO dto);
 }
