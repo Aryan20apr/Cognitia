@@ -22,6 +22,8 @@ import com.intellidesk.cognitia.chat.models.dtos.UserMessageDTO;
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.service.ChatService;
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
+import com.intellidesk.cognitia.utils.exceptionHandling.DuplicateRequestAlreadyProcessedException;
+import com.intellidesk.cognitia.utils.exceptionHandling.DuplicateRequestInProgressException;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -117,6 +119,24 @@ public class ChatController {
                     "{\"type\":\"error\",\"message\":\"" + escapeJson(e.getMessage()) + "\"}"
                 ).event("error").build(),
               ServerSentEvent.builder("[DONE]").build()
+            );
+        })
+        .onErrorResume(DuplicateRequestAlreadyProcessedException.class, e -> {
+            log.error("[ChatController] Duplicate request already processed: {}", e.getMessage());
+            return Flux.just(
+                ServerSentEvent.<String>builder(
+                    "{\"type\":\"error\",\"message\":\"" + escapeJson(e.getMessage()) + "\"}"
+                ).event("error").build(),
+                ServerSentEvent.builder("[DONE]").build()
+            );
+        })
+        .onErrorResume(DuplicateRequestInProgressException.class, e -> {
+            log.error("[ChatController] Duplicate request already processed: {}", e.getMessage());
+            return Flux.just(
+                ServerSentEvent.<String>builder(
+                    "{\"type\":\"error\",\"message\":\"" + escapeJson(e.getMessage()) + "\"}"
+                ).event("error").build(),
+                ServerSentEvent.builder("[DONE]").build()
             );
         })
         .onErrorResume(RuntimeException.class, e -> {
