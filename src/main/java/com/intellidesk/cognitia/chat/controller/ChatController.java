@@ -21,9 +21,11 @@ import com.intellidesk.cognitia.chat.models.dtos.CustomChatResponse;
 import com.intellidesk.cognitia.chat.models.dtos.UserMessageDTO;
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.service.ChatService;
+import com.intellidesk.cognitia.chat.service.ThreadLockService.ThreadLockStatus;
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.utils.exceptionHandling.DuplicateRequestAlreadyProcessedException;
 import com.intellidesk.cognitia.utils.exceptionHandling.DuplicateRequestInProgressException;
+import com.intellidesk.cognitia.utils.exceptionHandling.ThreadBusyException;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -99,12 +101,30 @@ public class ChatController {
         return ResponseEntity.ok().body(new ApiResponse<>("Thread deleted successfully", true, Map.of("threadId", threadId)));
     }
 
+    @Operation(summary = "Check thread lock status", description = "Check if a thread is currently busy processing a message. Use this before sending to show appropriate UI state.")
+    @GetMapping("/threads/{threadId}/status")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getThreadStatus(@PathVariable String threadId) {
+        ThreadLockStatus status = chatService.getThreadLockStatus(threadId);
+        
+        Map<String, Object> statusData = Map.of(
+            "threadId", threadId,
+            "isBusy", status.isBusy(),
+            "queuePosition", status.getWaitingCount(),
+            "canSendMessage", !status.isBusy()
+        );
+        
+        return ResponseEntity.ok().body(new ApiResponse<>(
+            status.isBusy() ? "Thread is currently processing a message" : "Thread is ready",
+            true,
+            statusData
+        ));
+    }
+
     @Operation(summary = "Stream a chat response")
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<org.springframework.http.codec.ServerSentEvent<String>> streamResponse(
         @RequestBody UserMessageDTO userMessageDTO
-){
-
+    ){
         return Flux.defer(() -> {
             if (userMessageDTO.getThreadId() == null) {
                 ChatThread chatThread = chatService.createNewThread();
@@ -112,40 +132,53 @@ public class ChatController {
             }
             return chatService.streamUserMessage(userMessageDTO);
         })
+        .onErrorResume(ThreadBusyException.class, e -> {
+            log.warn("[ChatController] Thread busy: {} - queue position: {}", e.getThreadId(), e.getQueuePosition());
+            String errorJson = String.format(
+                "{\"type\":\"error\",\"code\":\"THREAD_BUSY\",\"message\":\"%s\",\"threadId\":\"%s\",\"queuePosition\":%d,\"retryable\":true}",
+                escapeJson("Please wait for another response on this thread to complete"),
+                escapeJson(e.getThreadId()),
+                e.getQueuePosition()
+            );
+            return Flux.just(
+                ServerSentEvent.<String>builder(errorJson).event("error").build(),
+                ServerSentEvent.<String>builder("[DONE]").build()
+            );
+        })
         .onErrorResume(IllegalArgumentException.class, e -> {
             log.error("[ChatController] Invalid argument error: {}", e.getMessage());
             return Flux.just(
-          ServerSentEvent.<String>builder(
-                    "{\"type\":\"error\",\"message\":\"" + escapeJson(e.getMessage()) + "\"}"
+                ServerSentEvent.<String>builder(
+                    "{\"type\":\"error\",\"code\":\"INVALID_ARGUMENT\",\"message\":\"" + escapeJson(e.getMessage()) + "\"}"
                 ).event("error").build(),
-              ServerSentEvent.builder("[DONE]").build()
+                ServerSentEvent.<String>builder("[DONE]").build()
             );
         })
         .onErrorResume(DuplicateRequestAlreadyProcessedException.class, e -> {
             log.error("[ChatController] Duplicate request already processed: {}", e.getMessage());
             return Flux.just(
                 ServerSentEvent.<String>builder(
-                    "{\"type\":\"error\",\"message\":\"" + escapeJson(e.getMessage()) + "\"}"
+                    "{\"type\":\"error\",\"code\":\"DUPLICATE_PROCESSED\",\"message\":\"" + escapeJson(e.getMessage()) + "\"}"
                 ).event("error").build(),
-                ServerSentEvent.builder("[DONE]").build()
+                ServerSentEvent.<String>builder("[DONE]").build()
             );
         })
         .onErrorResume(DuplicateRequestInProgressException.class, e -> {
-            log.error("[ChatController] Duplicate request already processed: {}", e.getMessage());
+            log.error("[ChatController] Duplicate request in progress: {}", e.getMessage());
             return Flux.just(
                 ServerSentEvent.<String>builder(
-                    "{\"type\":\"error\",\"message\":\"" + escapeJson(e.getMessage()) + "\"}"
+                    "{\"type\":\"error\",\"code\":\"DUPLICATE_IN_PROGRESS\",\"message\":\"" + escapeJson(e.getMessage()) + "\",\"retryable\":false}"
                 ).event("error").build(),
-                ServerSentEvent.builder("[DONE]").build()
+                ServerSentEvent.<String>builder("[DONE]").build()
             );
         })
         .onErrorResume(RuntimeException.class, e -> {
             log.error("[ChatController] Runtime error: {}", e.getMessage(), e);
             return Flux.just(
                 ServerSentEvent.<String>builder(
-                    "{\"type\":\"error\",\"message\":\"Internal server error\"}"
+                    "{\"type\":\"error\",\"code\":\"INTERNAL_ERROR\",\"message\":\"Internal server error\"}"
                 ).event("error").build(),
-             ServerSentEvent.builder("[DONE]").build()
+                ServerSentEvent.<String>builder("[DONE]").build()
             );
         });
     }

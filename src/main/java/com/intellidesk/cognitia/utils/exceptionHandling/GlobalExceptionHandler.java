@@ -126,6 +126,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.OK).body(body);
     }
 
+    @ExceptionHandler(ThreadBusyException.class)
+    public ResponseEntity<?> handleThreadBusy(ThreadBusyException ex) {
+        log.warn("[GlobalExceptionHandler] Thread busy: {} - queue position: {}", ex.getThreadId(), ex.getQueuePosition());
+        Map<String, Object> body = Map.of(
+                "error", "thread_busy",
+                "code", "THREAD_BUSY",
+                "message", ex.getMessage(),
+                "threadId", ex.getThreadId(),
+                "queuePosition", ex.getQueuePosition(),
+                "retryable", true,
+                "timestamp", Instant.now()
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+    }
+
     @ExceptionHandler(Error.class)
 public ResponseEntity<ExceptionApiResponse<?>> handleError(Error error) {
     log.error("[GlobalExceptionHandler] : [handleError] : " + error.getMessage(), error);
