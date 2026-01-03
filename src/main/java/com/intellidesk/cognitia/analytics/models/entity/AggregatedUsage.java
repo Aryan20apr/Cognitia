@@ -10,7 +10,7 @@ import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Filters;
 
 import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
-
+import com.intellidesk.cognitia.analytics.models.enums.PeriodType;
 @Entity
 @Table(name = "aggregated_usage", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"tenant_id", "period_start"})
@@ -40,8 +40,6 @@ public class AggregatedUsage extends TenantAwareEntity {
 
     private Double estimatedCost;
 
-    public enum PeriodType {
-        DAY, MONTH
-    }
+
 }
 

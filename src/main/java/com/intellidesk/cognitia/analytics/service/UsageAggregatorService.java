@@ -28,24 +28,27 @@ public class UsageAggregatorService {
     @KafkaListener(topics = "${analytics.usage-events.topic.name}", groupId = "${analytics.usage-events.group.name}", containerFactory = "usageEventsKafkaListenerContainerFactory")
     public void processUsageEvent(ChatUsageDetailsDTO event) {
         try {
-            
-            log.debug("Received usage event: {}", event);
+            log.info("Received usage event: {}", event);
 
             boolean exists = eventRepository.existsByRequestId(event.getRequestId());
+            log.info("Checked existence of event with requestId={}: {}", event.getRequestId(), exists);
+
             if (!exists) {
                 log.warn("Event with requestId={} not found in DB. It might be unpersisted or delayed.", event.getRequestId());
                 // You could optionally decide to persist or skip it here
+            } else {
+                log.info("Event with requestId={} found in DB, proceeding with aggregation.", event.getRequestId());
             }
 
-            //    Record usage to Quota Service (idempotent, Redis-backed)
-            //    Note: QuotaService.recordUsage internally handles concurrency and deduplication
-            quotaService.recordUsage(
-               event
-            );
-            // 2) mark processed in redis to allow quick duplicate detection on new requests
+            log.info("Recording usage to QuotaService for tenantId={}, userId={}, threadId={}", event.getTenantId(), event.getUserId(), event.getThreadId());
+            quotaService.recordUsage(event);
+
+            // Mark processed in redis for duplicate protection
             if (event.getRequestId() != null) {
+                log.info("Marking requestId={} as processed in Redis", event.getRequestId());
                 redisIdempotencyService.markProcessed(event.getRequestId());
             }
+
             // Optionally push to Billing service for immediate or deferred invoice update
             // billingService.updateInvoiceAsync(event);
 

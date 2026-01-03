@@ -51,8 +51,10 @@ spring:
       chat:
         options:
           model: ${OPENAI_CHAT_MODEL:gemini-2.5-pro}
+          stream-usage: true
         completions-path: ${OPENAI_COMPLETIONS_PATH:/chat/completions}
 
+  
   # huggingface:
   #   api-key: ${HUGGINGFACE_API_KEY}
   #   embedding-model: ${HUGGINGFACE_EMBEDDING_MODEL:nomic-ai/nomic-embed-text-v1.5}

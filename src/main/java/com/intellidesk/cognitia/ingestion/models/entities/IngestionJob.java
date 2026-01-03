@@ -24,6 +24,10 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.Filters;
+
+import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
 
 @Entity
 @NoArgsConstructor
@@ -32,7 +36,8 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @EntityListeners(AuditingEntityListener.class)
-public class IngestionJob {
+@Filters(@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId"))
+public class IngestionJob extends TenantAwareEntity{
 
     @Id
     @GeneratedValue(strategy=GenerationType.UUID)
@@ -54,7 +59,6 @@ public class IngestionJob {
     private Date createdAt;
 
     @LastModifiedDate
-    // @UpdateTimestamp
     @Column(name = "updated_at", nullable = false, updatable = true )
     private Date updatedAt;
 

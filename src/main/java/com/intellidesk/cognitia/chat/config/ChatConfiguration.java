@@ -15,7 +15,6 @@ import org.springframework.context.annotation.Configuration;
 
 import com.intellidesk.cognitia.analytics.utils.IdempotencyCallAdvisor;
 import com.intellidesk.cognitia.analytics.utils.QuotaEnforcementAdvisor;
-import com.intellidesk.cognitia.analytics.utils.TokenAnalyticsAdvisor;
 import com.intellidesk.cognitia.analytics.utils.TokenAnalyticsAdvisorV2;
 import com.intellidesk.cognitia.chat.service.tools.DateTimeTool;
 import com.intellidesk.cognitia.chat.service.tools.WebSearchTool;
