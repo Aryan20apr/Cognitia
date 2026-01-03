@@ -29,11 +29,13 @@ import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class ChatService {
 
     private final ChatClient chatClient;
@@ -312,6 +314,7 @@ public class ChatService {
                             .stream().content()
                             .flatMap(chunk -> {
                                 buffer.get().append(chunk);
+                                log.info("[ChatService] Streaming chunk: {}", chunk);
                                 return Mono.just(
                                         ServerSentEvent.builder(chunk).build()
                                 );

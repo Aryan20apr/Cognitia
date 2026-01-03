@@ -70,6 +70,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(new AsyncRequestMatcher()).permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/company").permitAll()
+                .requestMatchers(HttpMethod.GET,"/api/v1/plans").permitAll()
                 .requestMatchers("/auth/**", "/api/tenants/create",  "/v3/api-docs/**",
                 "/swagger-ui/**",
                 "/swagger-ui.html").permitAll()

@@ -37,6 +37,11 @@ public class TenantFilter implements Filter {
                 log.info("[TenantFilter] : [isPublicPath] : POST /api/v1/company is a public path");
                 return true;
             }
+
+            if("GET".equals(method) && "/api/v1/plans".equals(path)) {
+                log.info("[TenantFilter] : [isPublicPath] : GET /api/v1/plans is a public path");
+                return true;
+            }
             
             log.info("[TenantFilter] : [isPublicPath] : Checking path '{}' against public paths: {}", path, PUBLIC_PATHS);
             boolean isPublic = PUBLIC_PATHS.stream().anyMatch(path::startsWith);

@@ -36,6 +36,7 @@ public class TenantServiceImpl implements TenantService {
     }
 
     @Transactional
+    @Override
     public TenantDTO createTenant(TenantDTO tenantDTO){
 
     log.info("[TenantServiceImpl] [createTenant] creating tenant with info: {}", tenantDTO);
