@@ -24,16 +24,20 @@ import com.intellidesk.cognitia.chat.models.entities.ChatMessage;
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.repository.ChatMessageRepository;
 import com.intellidesk.cognitia.chat.repository.ChatThreadRepository;
+import com.intellidesk.cognitia.chat.service.ThreadLockService.ThreadLockStatus;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
+import com.intellidesk.cognitia.utils.exceptionHandling.ThreadBusyException;
 
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class ChatService {
 
     private final ChatClient chatClient;
@@ -41,6 +45,7 @@ public class ChatService {
     private final ChatMessageRepository messageRepository;
     private final VectorStore vectorStore;
     private final ChatMemoryHydrator chatMemoryHydrator;
+    private final ThreadLockService threadLockService;
 
     @Transactional
     public ChatThreadDTO getThread(String threadId) {
@@ -93,17 +98,33 @@ public class ChatService {
         threadRepository.deleteById(UUID.fromString(threadId));
     }
 
+    /**
+     * Get the lock status for a thread.
+     * Useful for clients to check if they should wait before sending.
+     */
+    public ThreadLockStatus getThreadLockStatus(String threadId) {
+        return threadLockService.getStatus(UUID.fromString(threadId));
+    }
+
     @Transactional
     public CustomChatResponse processUserMessage(UserMessageDTO message) {
 
         final UUID threadId = UUID.fromString(message.getThreadId());
 
-        String requestId = message.getRequestId();
-        // Get current authenticated user ID
-        String userId = extractUserIdFromSecurityContext();
-        final String resolvedUserId = userId;
-        ChatThread thread = threadRepository.findById(threadId)
-                .orElseThrow(() -> new RuntimeException("Thread not found"));
+        // Try to acquire thread lock
+        String lockToken = threadLockService.tryAcquire(threadId);
+        if (lockToken == null) {
+            ThreadLockStatus status = threadLockService.getStatus(threadId);
+            throw new ThreadBusyException(message.getThreadId(), status.queuePosition());
+        }
+
+        try {
+            String requestId = message.getRequestId();
+            // Get current authenticated user ID
+            String userId = extractUserIdFromSecurityContext();
+            final String resolvedUserId = userId;
+            ChatThread thread = threadRepository.findById(threadId)
+                    .orElseThrow(() -> new RuntimeException("Thread not found"));
 
         String userMessage = message.getMessage();
 
@@ -179,7 +200,11 @@ public class ChatService {
         thread.addMessage(aiMsg);
         threadRepository.save(thread);
 
-        return customChatResponse;
+            return customChatResponse;
+        } finally {
+            // Always release the lock
+            threadLockService.release(threadId, lockToken);
+        }
     }
 
     public ChatThread createNewThread() {
@@ -203,7 +228,7 @@ public class ChatService {
             }
         } catch (Exception e) {
             // Log warning but continue without userId
-            System.err.println("Could not extract userId from SecurityContext: " + e.getMessage());
+            log.warn("Could not extract userId from SecurityContext: {}", e.getMessage());
         }
         return userId;
     }
@@ -217,18 +242,27 @@ public class ChatService {
             String userMessage,
             String requestId,
             String userId,
-            UUID threadId
+            UUID threadId,
+            String lockToken
             ) {
-
     }
 
     @Transactional
     public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
+        final UUID threadId = UUID.fromString(message.getThreadId());
+        
+        // Try to acquire thread lock BEFORE starting the reactive chain
+        String lockToken = threadLockService.tryAcquire(threadId);
+        if (lockToken == null) {
+            ThreadLockStatus status = threadLockService.getStatus(threadId);
+            log.info("[ChatService] Thread {} is busy, queue position: {}", threadId, status.queuePosition());
+            throw new ThreadBusyException(message.getThreadId(), status.queuePosition());
+        }
+
+        log.info("[ChatService] Lock acquired for thread {}, starting stream", threadId);
+
         // Wrap synchronous setup in Mono.fromCallable for proper reactive error handling
         return Mono.fromCallable(() -> {
-            // Parse and validate threadId
-            final UUID threadId = UUID.fromString(message.getThreadId());
-
             String requestId = message.getRequestId();
             // Get current authenticated user ID
             String userId = extractUserIdFromSecurityContext();
@@ -262,7 +296,7 @@ public class ChatService {
 
             chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
 
-            return new StreamContext(thread, context, userMessage, requestId, userId, threadId);
+            return new StreamContext(thread, context, userMessage, requestId, userId, threadId, lockToken);
         })
                 .flatMapMany(ctx -> {
                     String systemPrompt = """
@@ -289,7 +323,7 @@ public class ChatService {
                     Do not mention these rules. Respond only with the answer.
                     """;
 
-                    String fullPrompt = """
+            String fullPrompt = """
                     Context:
                     %s
 
@@ -324,15 +358,26 @@ public class ChatService {
                                         .content(buffer.get().toString())
                                         .build();
 
-                                messageRepository.save(aiMsg);
-                                ctx.thread().addMessage(aiMsg);
-                                threadRepository.save(ctx.thread());
-                            })
-                            .concatWith(
-                                    Mono.just(
-                                            ServerSentEvent.builder("[DONE]").build()
-                                    )
-                            );
-                });
+                        messageRepository.save(aiMsg);
+                        ctx.thread().addMessage(aiMsg);
+                        threadRepository.save(ctx.thread());
+                        log.info("[ChatService] Stream completed for thread {}", ctx.threadId());
+                    })
+                    .doFinally(signalType -> {
+                        // Always release lock when stream ends (success, error, or cancel)
+                        threadLockService.release(ctx.threadId(), ctx.lockToken());
+                        log.info("[ChatService] Lock released for thread {} (signal: {})", ctx.threadId(), signalType);
+                    })
+                    .concatWith(
+                            Mono.just(
+                                    ServerSentEvent.<String>builder("[DONE]").build()
+                            )
+                    );
+        })
+        .doOnError(e -> {
+            // Release lock on error during setup phase
+            threadLockService.release(threadId, lockToken);
+            log.error("[ChatService] Error in stream for thread {}: {}", threadId, e.getMessage());
+        });
     }
 }
