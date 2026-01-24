@@ -17,6 +17,7 @@ import com.intellidesk.cognitia.analytics.utils.IdempotencyCallAdvisor;
 import com.intellidesk.cognitia.analytics.utils.QuotaEnforcementAdvisor;
 import com.intellidesk.cognitia.analytics.utils.TokenAnalyticsAdvisorV2;
 import com.intellidesk.cognitia.chat.service.tools.DateTimeTool;
+import com.intellidesk.cognitia.chat.service.tools.WebExtractTool;
 import com.intellidesk.cognitia.chat.service.tools.WebSearchTool;
 
 import lombok.AllArgsConstructor;
@@ -30,6 +31,7 @@ public class ChatConfiguration {
 
     private WebSearchTool webSearchTool;
     private DateTimeTool dateTimeTool;
+    private WebExtractTool webExtractTool;
 
     
     @Bean
@@ -57,7 +59,7 @@ public class ChatConfiguration {
     public ChatClient geminiChatClient(ChatModel chatModel,  IdempotencyCallAdvisor idempotencyCallAdvisor, QuotaEnforcementAdvisor quotaEnforcementAdvisor, MessageChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsAdvisorV2 tokenAnalyticsCallAdvisor) {
         return ChatClient.builder(chatModel)
             .defaultAdvisors(List.of(idempotencyCallAdvisor,quotaEnforcementAdvisor, chatMemoryAdvisor,tokenAnalyticsCallAdvisor, new SimpleLoggerAdvisor()))
-            .defaultTools(webSearchTool, dateTimeTool)
+            .defaultTools(webSearchTool, dateTimeTool, webExtractTool)
             .build();
         // return ChatClient.builder(chatModel).defaultAdvisors(List.of(new SimpleLoggerAdvisor())).build();
     }

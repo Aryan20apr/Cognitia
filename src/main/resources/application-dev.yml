@@ -48,10 +48,13 @@ spring:
         options:
           model: ${OPENAI_EMBEDDING_MODEL:gemini-embedding-001}
           dimensions: ${OPENAI_EMBEDDING_DIMENSIONS:1536}
+          
       chat:
         options:
           model: ${OPENAI_CHAT_MODEL:gemini-2.5-pro}
           stream-usage: true
+          log-requests: true
+          log-responses: true
         completions-path: ${OPENAI_COMPLETIONS_PATH:/chat/completions}
 
   
@@ -106,6 +109,9 @@ analytics:
 logging:
   level:
     '[com.intellidesk.cognitia.userandauth]': DEBUG
+    '[org.springframework.ai.openai]': DEBUG
+    '[org.springframework.ai.chat]': DEBUG
+  
     org:
       apache:
         kafka: OFF
@@ -149,8 +155,12 @@ tavily:
     max_results: 3
     topic: general
     search_depth: basic
-    chunks_per_source: 3
+    chunks_per_source: 4
     include_answer: advanced
     include_raw_content: true
     include_images: false
     include_favicon: false
+  extract:
+      url: https://api.tavily.com/extract
+      chunks_per_source: 3
+      timeout_seconds: 30
