@@ -52,6 +52,7 @@ public class AnalyticsDataSeeder implements CommandLineRunner {
         // 1️⃣ Create a sample plan
         Plan standardPlan = Plan.builder()
                 .name("Standard Plan")
+                .code("TRIAL001")
                 .description("Includes base token and user limits for testing.")
                 .includedPromptTokens(50_000L)
                 .includedCompletionTokens(50_000L)
