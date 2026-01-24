@@ -1,5 +1,6 @@
 package com.intellidesk.cognitia.chat.service.tools;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,26 +10,26 @@ import java.util.stream.Collectors;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellidesk.cognitia.chat.models.dtos.TavilyExtractResponse;
 
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Tool for extracting text from a web page using Tavily Extract API.
+ * Tool for extracting text from web pages using Tavily Extract API.
  */
 @Component
 @Slf4j
 public class WebExtractTool {
 
-    private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private WebClient webClient;
 
     @Value("${tavily.api.key}")
     private String apiKey;
@@ -39,92 +40,101 @@ public class WebExtractTool {
     @Value("${tavily.api.chunks_per_source:4}")
     private int defaultChunksPerSource;
 
+    @Value("${tavily.api.timeout.seconds:30}")
+    private int timeoutSeconds;
+
+    private static final String ERROR_MESSAGE = "Could not extract content from the URL(s). The page may be inaccessible or protected.";
+
+    @PostConstruct
+    public void init() {
+        this.webClient = WebClient.builder()
+                .baseUrl(extractApiUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+    }
+
     @Tool(description = "Extract and retrieve specific content from web pages using Tavily Extract API. Use this tool when you need to extract detailed information from specific URLs based on a query.", returnDirect = false)
     public String extractText(
             @ToolParam(description = "List of URLs to extract content from. Provide one or more valid web page URLs.") List<String> urls,
-            @ToolParam(description = "The query or question that guides what content to extract from the URLs. This helps focus the extraction on relevant information.") String query,
-            @ToolParam(description = "The extraction depth: 'basic' for quick extraction or 'advanced' for more thorough extraction. Defaults to 'advanced' if not specified.") String extractDepth) {
+            @ToolParam(description = "The query or question that guides what content to extract from the URLs.") String query,
+            @ToolParam(description = "The extraction depth: 'basic' for quick extraction or 'advanced' for more thorough extraction. Defaults to 'advanced'.") String extractDepth) {
+
         if (urls == null || urls.isEmpty()) {
-            throw new IllegalArgumentException("URLs list cannot be null or empty");
+            return "Please provide at least one valid URL to extract content from.";
         }
         if (query == null || query.isBlank()) {
-            throw new IllegalArgumentException("Query cannot be null or blank");
+            return "Please provide a query to guide the extraction.";
+        }
+
+        List<String> validUrls = urls.stream()
+                .filter(url -> url != null && (url.startsWith("http://") || url.startsWith("https://")))
+                .collect(Collectors.toList());
+
+        if (validUrls.isEmpty()) {
+            return "No valid URLs provided. URLs must start with http:// or https://";
         }
 
         String depth = (extractDepth != null && !extractDepth.isBlank()) ? extractDepth : "advanced";
-        int chunksPerSource = defaultChunksPerSource;
 
-        // Build the request body
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("urls", urls);
+        requestBody.put("urls", validUrls);
         requestBody.put("query", query);
-        requestBody.put("chunks_per_source", chunksPerSource);
+        requestBody.put("chunks_per_source", defaultChunksPerSource);
         requestBody.put("extract_depth", depth);
-        requestBody.put("include_usage", true);
+
+        log.info("Tavily Extract - urls={}, query='{}'", validUrls, query);
 
         try {
-            log.info("Tavily Extract - Params: urls={}, query='{}', extractDepth='{}'", 
-                    urls, query, extractDepth);
-            log.info("Tavily Extract - Request Body: {}",
-                    objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(requestBody));
-        } catch (Exception ex) {
-            log.warn("Failed to serialize requestBody for logging", ex);
+            String rawResponse = webClient.post()
+                    .uri(extractApiUrl)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(Duration.ofSeconds(timeoutSeconds));
+
+            return parseResponse(rawResponse);
+
+        } catch (Exception e) {
+            log.error("Tavily Extract API error: {}", e.getMessage());
+            return ERROR_MESSAGE;
+        }
+    }
+
+    private String parseResponse(String rawResponse) {
+        if (rawResponse == null || rawResponse.isBlank()) {
+            return ERROR_MESSAGE;
         }
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", "Bearer " + apiKey);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            String rawResponse = restTemplate.postForObject(extractApiUrl, entity, String.class);
-
-            log.info("Tavily Extract - Raw Response: {}", rawResponse);
-
-            if (rawResponse == null) {
-                log.error("Tavily Extract - Tavily returned null response for urls={}, query='{}'", 
-                        urls, query);
-                throw new RuntimeException("Tavily returned null response");
-            }
-
-            // Parse JSON response
             TavilyExtractResponse resp = objectMapper.readValue(rawResponse, TavilyExtractResponse.class);
 
-            try {
-                log.debug("Tavily Extract - Parsed Results: {}",
-                        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(resp.getResults()));
-            } catch (Exception ex) {
-                log.warn("Failed to serialize parsed results for logging", ex);
-            }
-
-            // Combine all extracted content into a single string
             if (resp.getResults() == null || resp.getResults().isEmpty()) {
-                log.warn("Tavily Extract - No results returned for urls={}, query='{}'", 
-                        urls, query);
-                return "No content extracted from the provided URLs.";
+                return ERROR_MESSAGE;
             }
 
             List<String> extractedTexts = new ArrayList<>();
             for (var result : resp.getResults()) {
-                StringBuilder urlContent = new StringBuilder();
-                urlContent.append("URL: ").append(result.getUrl()).append("\n");
-                
+                StringBuilder content = new StringBuilder();
+                content.append("## Source: ").append(result.getUrl()).append("\n\n");
+
                 if (result.getTitle() != null && !result.getTitle().isBlank()) {
-                    urlContent.append("Title: ").append(result.getTitle()).append("\n");
+                    content.append("**Title:** ").append(result.getTitle()).append("\n\n");
                 }
-                
+
                 if (result.getRawContent() != null && !result.getRawContent().isBlank()) {
-                    urlContent.append("Content: ").append(result.getRawContent()).append("\n");
+                    content.append(result.getRawContent()).append("\n");
                 }
-                
-                extractedTexts.add(urlContent.toString());
+
+                extractedTexts.add(content.toString());
             }
 
-            return extractedTexts.stream().collect(Collectors.joining("\n\n---\n\n"));
+            log.info("Tavily Extract - Successfully extracted from {} URLs", resp.getResults().size());
+            return extractedTexts.stream().collect(Collectors.joining("\n---\n\n"));
 
         } catch (Exception e) {
-            log.error("Error calling Tavily Extract API: {}", e.getMessage(), e);
-            throw new RuntimeException("Error calling Tavily Extract API: " + e.getMessage(), e);
+            log.error("Failed to parse Tavily response: {}", e.getMessage());
+            return ERROR_MESSAGE;
         }
     }
 }
