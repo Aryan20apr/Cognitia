@@ -20,6 +20,7 @@ import com.intellidesk.cognitia.analytics.models.entity.Plan;
 import com.intellidesk.cognitia.analytics.models.entity.TenantQuota;
 import com.intellidesk.cognitia.analytics.models.entity.UserQuota;
 import com.intellidesk.cognitia.analytics.models.enums.EnforcementMode;
+import com.intellidesk.cognitia.analytics.models.enums.PeriodType;
 import com.intellidesk.cognitia.analytics.models.enums.QuotaStatus;
 import com.intellidesk.cognitia.analytics.repository.AggregatedUsageRepository;
 import com.intellidesk.cognitia.analytics.repository.ChatUsageRepository;
@@ -30,9 +31,9 @@ import com.intellidesk.cognitia.analytics.service.ChatUsageService;
 import com.intellidesk.cognitia.analytics.service.QuotaService;
 import com.intellidesk.cognitia.analytics.service.RedisCounterService;
 import com.intellidesk.cognitia.analytics.utils.TenantQuotaMapper;
-import lombok.extern.slf4j.Slf4j;
+
 import lombok.RequiredArgsConstructor;
-import com.intellidesk.cognitia.analytics.models.enums.PeriodType;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Minimal example implementation — adapt to your TenantQuota DB model and Plan
@@ -282,6 +283,47 @@ public class QuotaServiceImpl implements QuotaService {
 
         TenantQuota saved = tenantQuotaRepository.save(quota);
         return mapper.toDto(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canUploadResource(UUID tenantId) {
+        TenantQuota quota = tenantQuotaRepository.findActiveQuotaByTenant(tenantId)
+                .orElse(null);
+        
+        if (quota == null) {
+            log.warn("No active quota found for tenant {}. Allowing upload by default.", tenantId);
+            return true; // No quota = no limit enforced
+        }
+        
+        Integer maxResources = quota.getMaxResources();
+        Integer usedResources = quota.getUsedResources() != null ? quota.getUsedResources() : 0;
+        
+        // If maxResources is null or 0, no limit is set
+        if (maxResources == null || maxResources <= 0) {
+            return true;
+        }
+        
+        boolean canUpload = usedResources < maxResources;
+        log.info("Resource quota check for tenant {}: used={}, max={}, canUpload={}", 
+                tenantId, usedResources, maxResources, canUpload);
+        
+        return canUpload;
+    }
+
+    @Override
+    @Transactional
+    public void incrementResourceCount(UUID tenantId) {
+        LocalDate today = LocalDate.now();
+        int updatedRows = tenantQuotaRepository.incrementUsedTokens(
+                tenantId, today, 0L, 0L, 0L, 1); // Only increment resources
+        
+        if (updatedRows == 0) {
+            log.warn("No quota record updated for tenant {} when incrementing resource count. " +
+                    "Quota may not exist or billing cycle mismatch.", tenantId);
+        } else {
+            log.info("Incremented resource count for tenant {}", tenantId);
+        }
     }
 
     @Override
