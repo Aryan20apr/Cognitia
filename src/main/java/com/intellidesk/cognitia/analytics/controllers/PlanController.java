@@ -1,5 +1,19 @@
 package com.intellidesk.cognitia.analytics.controllers;
 
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.intellidesk.cognitia.analytics.models.dto.PlanDTO;
 import com.intellidesk.cognitia.analytics.service.PlanCatalogService;
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
@@ -8,14 +22,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/plans")
@@ -78,7 +85,7 @@ public class PlanController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden")
     })
     @PostMapping
-    @PreAuthorize("hasRole('USER_CREATE')")
+    @PreAuthorize("hasAuthority('PERM_PLAN_CREATE')")
     public ResponseEntity<ApiResponse<PlanDTO>> createPlan(
             @RequestBody PlanDTO planDTO) {
         return ResponseEntity.ok(ApiResponse.<PlanDTO>builder()
@@ -95,7 +102,7 @@ public class PlanController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden")
     })
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_PLAN_UPDATE')")
     public ResponseEntity<ApiResponse<PlanDTO>> updatePlan(
             @Parameter(description = "Plan ID", required = true)
             @PathVariable UUID id,
@@ -114,7 +121,7 @@ public class PlanController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden")
     })
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_PLAN_UPDATE')")
     public ResponseEntity<ApiResponse<Void>> deactivatePlan(
             @Parameter(description = "Plan ID", required = true)
             @PathVariable UUID id) {

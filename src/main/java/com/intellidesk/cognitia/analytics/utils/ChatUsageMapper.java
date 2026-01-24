@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
 import com.intellidesk.cognitia.analytics.models.entity.ChatUsage;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", builder = @Builder(disableBuilder = true))
 @Component
 public interface ChatUsageMapper {
 

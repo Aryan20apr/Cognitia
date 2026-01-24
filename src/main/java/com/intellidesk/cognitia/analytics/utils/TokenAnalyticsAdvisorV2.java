@@ -1,5 +1,8 @@
 package com.intellidesk.cognitia.analytics.utils;
 
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
@@ -14,9 +17,6 @@ import com.intellidesk.cognitia.common.Constants;
 
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
-
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Component
 @Slf4j
@@ -57,22 +57,44 @@ public class TokenAnalyticsAdvisorV2 implements CallAdvisor, StreamAdvisor {
         long start = System.currentTimeMillis();
         AtomicReference<ChatClientResponse> lastResponse = new AtomicReference<>();
 
+        log.info("[TokenAnalyticsAdvisorV2] Starting adviseStream for request with context: {}", request.context());
+
         return chain.nextStream(request)
             .doOnNext(response -> {
                 // Keep track of the last response (which should contain usage metadata)
                 lastResponse.set(response);
+                try{
+                    var usage = response.chatResponse().getMetadata().getUsage();
+                    String data = String.format("""
+                    [TokenAnalytics]
+                    
+                    Prompt tokens: %d
+                    Completion tokens: %d
+                    Total tokens: %d
+                   
+                    """,
+                   
+                    usage.getPromptTokens(),
+                    usage.getCompletionTokens(),
+                    usage.getTotalTokens()
+                    );
+                    log.info(data);
+                } catch (Exception e){
+                    log.error("[TokenAnalyticsAdvisorV2] Error extracting usage from response: {}", e.getMessage());
+                }
             })
             .doOnComplete(() -> {
                 long duration = System.currentTimeMillis() - start;
                 ChatClientResponse response = lastResponse.get();
                 if (response != null) {
+                    log.info("[TokenAnalyticsAdvisorV2] Stream completed, recording usage data.");
                     recordUsageFromResponse(request, response, duration);
                 } else {
-                    log.warn("Stream completed but no response received for usage tracking");
+                    log.warn("[TokenAnalyticsAdvisorV2] Stream completed but no response received for usage tracking");
                 }
             })
             .doOnError(e -> {
-                log.error("Stream error occurred, usage may not be recorded: {}", e.getMessage());
+                log.error("[TokenAnalyticsAdvisorV2] Stream error occurred, usage may not be recorded: {}", e.getMessage());
             });
     }
 
@@ -83,11 +105,12 @@ public class TokenAnalyticsAdvisorV2 implements CallAdvisor, StreamAdvisor {
         String threadIdStr = (String) request.context().get(ChatMemory.CONVERSATION_ID);
         String requestId = (String) request.context().get(Constants.PARAM_REQUEST_ID);
 
+        log.info("[TokenAnalyticsAdvisorV2] Extracted params from request context: tenantId={}, userId={}, threadId={}, requestId={}", tenantIdStr, userIdStr, threadIdStr, requestId);
+
         UUID tenantId = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
         UUID userId = userIdStr != null ? UUID.fromString(userIdStr) : null;
         UUID threadId = threadIdStr != null ? UUID.fromString(threadIdStr) : null;
 
-        // Extract usage metadata safely:
         Long promptTokens = null, completionTokens = null, totalTokens = null;
         String model = null;
         
@@ -121,6 +144,12 @@ public class TokenAnalyticsAdvisorV2 implements CallAdvisor, StreamAdvisor {
             promptTokens = promptN != null ? promptN.longValue() : null;
             completionTokens = completionN != null ? completionN.longValue() : null;
             totalTokens = totalN != null ? totalN.longValue() : null;
+
+            log.info("[TokenAnalyticsAdvisorV2] Extracted usage from response. Model: {}, PromptTokens: {}, CompletionTokens: {}, TotalTokens: {}, Duration(ms): {}",
+                model, promptTokens, completionTokens, totalTokens, duration);
+
+        } else {
+            log.info("[TokenAnalyticsAdvisorV2] No usage data found in response for tenantId={}, userId={}, threadId={}", tenantId, userId, threadId);
         }
 
         // Optionally attach metadata JSON (provider-specific metadata)
@@ -128,17 +157,25 @@ public class TokenAnalyticsAdvisorV2 implements CallAdvisor, StreamAdvisor {
         try {
             if (response != null && response.chatResponse() != null && response.chatResponse().getMetadata() != null) {
                 metadataJson = response.chatResponse().getMetadata().toString();
+            
+                log.info("[TokenAnalyticsAdvisorV2] Extracted metadata JSON from response: {}", metadataJson);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ex) {
+            log.warn("[TokenAnalyticsAdvisorV2] Could not extract response metadata JSON: {}", ex.getMessage());
+        }
 
         // Record usage
         if (tenantId != null) {
+            log.info("[TokenAnalyticsAdvisorV2] Recording usage: tenantId={}, userId={}, threadId={}, requestId={}", tenantId, userId, threadId, requestId);
             meteringIngestService.recordUsage(tenantId, userId, threadId, requestId,
                     model,
                     promptTokens, completionTokens, totalTokens, metadataJson);
+            log.info("[TokenAnalyticsAdvisorV2] Usage recorded for tenantId: {}", tenantId);
+        } else {
+            log.warn("[TokenAnalyticsAdvisorV2] No tenantId found. Usage will not be recorded.");
         }
 
-        // Optionally log
+        // Always log final token usage for tracking
         log.info("Token usage: tenant={} prompt={} completion={} total={} durationMs={}", 
                 tenantId, promptTokens, completionTokens, totalTokens, duration);
     }

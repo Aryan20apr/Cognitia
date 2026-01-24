@@ -1,6 +1,11 @@
 package com.intellidesk.cognitia.analytics.service.impl;
 
 
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,12 +15,11 @@ import com.intellidesk.cognitia.analytics.repository.PlanRepository;
 import com.intellidesk.cognitia.analytics.service.PlanCatalogService;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.PlanNotFoundException;
 
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Transactional
+@Slf4j
 public class PlanCatalogServiceImpl implements PlanCatalogService {
 
     private final PlanRepository planRepo;
@@ -36,7 +40,15 @@ public class PlanCatalogServiceImpl implements PlanCatalogService {
 
     @Override
     public PlanDTO findByCode(String code) {
-        return planRepo.findByCode(code).map(this::toDto).orElseThrow(() -> new PlanNotFoundException("Plan not found"));
+        log.info("Finding plan by code: {}",code);
+
+        Optional<Plan> plan = planRepo.findByCode(code);
+        if(plan.isPresent()){
+            return toDto(plan.get());
+        } else{
+            throw new PlanNotFoundException("Plan not found with code "+code);
+        }
+        
     }
 
     @Override
@@ -84,6 +96,7 @@ public class PlanCatalogServiceImpl implements PlanCatalogService {
     }
 
     private PlanDTO toDto(Plan p) {
+        log.info("Converting plan to dto: {}", p);
         PlanDTO d = new PlanDTO();
         d.setId(p.getId());
         d.setCode(p.getCode());

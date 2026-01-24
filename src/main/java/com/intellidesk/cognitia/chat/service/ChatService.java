@@ -16,6 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.chat.models.dtos.ChatMessageDTO;
 import com.intellidesk.cognitia.chat.models.dtos.ChatThreadDTO;
 import com.intellidesk.cognitia.chat.models.dtos.CustomChatResponse;
@@ -179,9 +180,9 @@ public class ChatService {
                 .advisors(a -> {
                     a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
                     // Use thread.getUserId() if userId is not directly available
-                    a.param("requestId", requestId != null ? requestId : "1");
-                    a.param("userId", resolvedUserId != null ? resolvedUserId : "");
-                    a.param("tenantId", TenantContext.getTenantId().toString());
+                    a.param(Constants.PARAM_REQUEST_ID, requestId != null ? requestId : "1");
+                    a.param(Constants.PARAM_USER_ID, resolvedUserId != null ? resolvedUserId : "");
+                    a.param(Constants.PARAM_TENANT_ID, TenantContext.getTenantId().toString());
                 }) // Connect memory
                 .system(systemPrompt)
                 .user(fullPrompt)
@@ -346,6 +347,7 @@ public class ChatService {
                             .stream().content()
                             .flatMap(chunk -> {
                                 buffer.get().append(chunk);
+                                log.info("[ChatService] Streaming chunk: {}", chunk);
                                 return Mono.just(
                                         ServerSentEvent.builder(chunk).build()
                                 );

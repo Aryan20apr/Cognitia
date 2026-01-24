@@ -5,12 +5,13 @@ import java.util.Date;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
-import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
 import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 
@@ -44,6 +45,7 @@ public class ChatUsage extends TenantAwareEntity {
 
     @ManyToOne
     @JoinColumn(name = "thread_id", referencedColumnName = "id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private ChatThread thread;
 
     private Long promptTokens;      

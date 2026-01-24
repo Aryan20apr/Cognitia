@@ -30,14 +30,16 @@ import com.intellidesk.cognitia.analytics.service.ChatUsageService;
 import com.intellidesk.cognitia.analytics.service.QuotaService;
 import com.intellidesk.cognitia.analytics.service.RedisCounterService;
 import com.intellidesk.cognitia.analytics.utils.TenantQuotaMapper;
-
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import com.intellidesk.cognitia.analytics.models.enums.PeriodType;
 
 /**
  * Minimal example implementation — adapt to your TenantQuota DB model and Plan
  * pricing
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class QuotaServiceImpl implements QuotaService {
 
@@ -85,59 +87,46 @@ public class QuotaServiceImpl implements QuotaService {
     @Override
     @Transactional
     public void recordUsage(ChatUsageDetailsDTO chatUsageDetailsDTO) {
-
+        log.info("Recording Chat usage with details: {}", chatUsageDetailsDTO);
         UUID tenantId = chatUsageDetailsDTO.getTenantId();
 
         String requestId = chatUsageDetailsDTO.getRequestId();
-        if (chatUsageDetailsDTO.getRequestId() != null) {
-            Optional<ChatUsageDetailsDTO> existing = chatUsageService
-                    .findByRequestId(chatUsageDetailsDTO.getRequestId());
+        if (requestId != null) {
+            log.info("Checking for existing usage event with requestId={}", requestId);
+            Optional<ChatUsageDetailsDTO> existing = chatUsageService.findByRequestId(requestId);
             if (existing.isPresent() && Boolean.TRUE.equals(existing.get().getIsProcessed())) {
-                // already processed for quota updates
+                log.info("RequestId {} is already processed for quota updates. Skipping.", requestId);
                 return;
             }
         }
         long p = chatUsageDetailsDTO.getPromptTokens() == null ? 0L : chatUsageDetailsDTO.getPromptTokens();
         long c = chatUsageDetailsDTO.getCompletionTokens() == null ? 0L : chatUsageDetailsDTO.getCompletionTokens();
         long total = p + c;
+        log.info("Tokens to be recorded: promptTokens={}, completionTokens={}, total={}", p, c, total);
 
         // Determine billing period start (for example, first day of month)
         LocalDate periodStart = YearMonth.now().atDay(1); // adapt to tenant timezone / billing cycle
+        log.info("Using periodStart={} for quota accounting.", periodStart);
 
-        // 2) Atomically increment tenant quota counters in DB (via repository
-        // @Modifying)
+        // 2) Atomically increment tenant quota counters in DB (via repository @Modifying)
         int updatedRows = tenantQuotaRepository.incrementUsedTokens(
                 tenantId,
-                periodStart,
+                LocalDate.now(),
                 p, c, total, 0); // resources = 0 in token-only event
-
-        if (updatedRows == 0) {
-            // maybe no active row found — fallback: create a new TenantQuota record or
-            // throw
-            // For resiliency, try to fetch and create a new row
-            TenantQuota tq = tenantQuotaRepository.findActiveQuotaByTenant(tenantId)
-                    .orElseGet(() -> {
-                        TenantQuota newTq = new TenantQuota();
-                        newTq.setTenantId(tenantId);
-                        newTq.setBillingCycleStart(periodStart);
-                        newTq.setBillingCycleEnd(periodStart.plusMonths(1).minusDays(1));
-                        newTq.setMaxTotalTokens(Long.MAX_VALUE); // default unbounded until provisioned
-                        newTq.setUsedTotalTokens(total);
-                        return tenantQuotaRepository.save(newTq);
-                    });
-            // if created, nothing else to do — continue
-        }
+        log.info("Incremented tenant quota counters: updatedRows={}", updatedRows);
 
         // 3) Atomically increment user quota counters if user quota exists
         if (chatUsageDetailsDTO.getUserId() != null) {
-            int userUpdated = userQuotaRepository.incrementUsedTokens(chatUsageDetailsDTO.getUserId(), periodStart, p,
-                    c, total, 0);
+            UUID userId = chatUsageDetailsDTO.getUserId();
+            int userUpdated = userQuotaRepository.incrementUsedTokens(userId, periodStart, p, c, total, 0);
+            log.info("Incremented user quota counters for userId {}: userUpdated={}", userId, userUpdated);
             // if userUpdated == 0, user quota not configured; it's OK
         }
 
         // 4) Mark ChatUsageEvent as processed (if exists) to prevent double processing
         if (requestId != null) {
             chatUsageRepository.findByRequestId(requestId).ifPresent(ev -> {
+                log.info("Marking ChatUsageEvent with requestId {} as processed.", requestId);
                 ev.setIsProcessed(true);
                 ev.setProcessedAt(Date.from(Instant.now()));
                 chatUsageRepository.save(ev);
@@ -147,6 +136,7 @@ public class QuotaServiceImpl implements QuotaService {
         // 5) Update aggregated usage (durable snapshot) for the tenant — optional
         aggregatedUsageRepository.findByTenantIdAndPeriodStart(tenantId, periodStart)
                 .ifPresentOrElse(agg -> {
+                    log.info("Updating aggregated usage for tenantId={}, periodStart={}", tenantId, periodStart);
                     agg.setTotalPromptTokens(
                             (agg.getTotalPromptTokens() == null ? 0L : agg.getTotalPromptTokens()) + p);
                     agg.setTotalCompletionTokens(
@@ -154,9 +144,11 @@ public class QuotaServiceImpl implements QuotaService {
                     agg.setTotalTokens((agg.getTotalTokens() == null ? 0L : agg.getTotalTokens()) + total);
                     aggregatedUsageRepository.save(agg);
                 }, () -> {
+                    log.info("No aggregated usage record found for tenantId={}, periodStart={}. Creating new.", tenantId, periodStart);
                     AggregatedUsage newAgg = new AggregatedUsage();
                     newAgg.setTenantId(tenantId);
                     newAgg.setPeriodStart(periodStart);
+                    newAgg.setPeriod(PeriodType.MONTH);
                     newAgg.setTotalPromptTokens(p);
                     newAgg.setTotalCompletionTokens(c);
                     newAgg.setTotalTokens(total);
@@ -171,13 +163,17 @@ public class QuotaServiceImpl implements QuotaService {
             long used = t.getUsedTotalTokens() == null ? total : t.getUsedTotalTokens();
             long overage = Math.max(0L, used - t.getMaxTotalTokens());
             t.setOverageTokens(overage);
+            log.info("Computed overage for tenantId={}: used={}, maxTotal={}, overage={}", tenantId, used, t.getMaxTotalTokens(), overage);
+
             // cost calculation: simple example: overage * ratePerToken
             BigDecimal rate = t.getOverageCharges() != null ? t.getOverageCharges() : BigDecimal.ZERO;
             BigDecimal overageChargeAmount = rate.multiply(BigDecimal.valueOf(overage));
             t.setOverageCharges(overageChargeAmount);
+            log.info("Updated overageCharges for tenantId={}: rate={}, overageChargeAmount={}", tenantId, rate, overageChargeAmount);
+
             tenantQuotaRepository.save(t);
         }
-
+        log.info("Successfully recorded usage for tenantId={}, requestId={}", tenantId, requestId);
     }
 
     @Override
@@ -235,6 +231,7 @@ public class QuotaServiceImpl implements QuotaService {
     }
 
     @Override
+    @Transactional
     public TenantQuotaDTO assignPlan(UUID tenantId, AssignPlanRequest request) {
         Plan plan = planRepository.findById(request.getPlanId())
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found"));

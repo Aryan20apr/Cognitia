@@ -75,5 +75,34 @@ public class RoleServiceImpl implements RoleService{
             }).collect(Collectors.toList());
         }
 
+    @Override
+    @Transactional
+    public RoleCreationDTO updateRole(RoleCreationDTO roleCreationDTO){
+        Role role = roleRepository.findById(roleCreationDTO.getRoleId()).orElseThrow(() -> new ApiException("Role not found"));
+        
+        Set<Integer> requestedIds = roleCreationDTO.getPermissions()
+                .stream()
+                .map(PermissionDTO::getId)
+                .collect(Collectors.toSet());
+
+        List<Permission> existingPermissions = permissionRepository.findAllById(requestedIds);
+
+        if (existingPermissions.size() != requestedIds.size()) {
+            Set<Integer> foundIds = existingPermissions.stream()
+                    .map(Permission::getPermissionId)
+                    .collect(Collectors.toSet());
+
+            Set<Integer> missingIds = new HashSet<>(requestedIds);
+            missingIds.removeAll(foundIds);
+
+            throw new ApiException("Some permissions not found", missingIds.toString());
+        }
+        
+        role.setRoleName(roleCreationDTO.getName());
+        role.setPermissions(new HashSet<>(existingPermissions));
+        Role updatedRole = roleRepository.save(role);
+        roleCreationDTO.setRoleId(updatedRole.getRoleId());
+        return roleCreationDTO;
+    }
     
 }
