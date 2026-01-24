@@ -1,5 +1,8 @@
 package com.intellidesk.cognitia.chat.service.tools;
 
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,9 +17,6 @@ import com.intellidesk.cognitia.chat.models.dtos.TavilyResponse;
 import com.intellidesk.cognitia.chat.models.dtos.TavilyResult;
 
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * Tool for performing web search via the Tavily Search API.
@@ -54,7 +54,7 @@ public class WebSearchTool {
                 "max_results", mr,
                 "topic", tp,
                 "search_depth", "basic",
-                 "chunks_per_source", 3,
+                "chunks_per_source", 3,
                 "include_answer", "advanced",
                 "include_raw_content", true,
                 "include_images", false,
