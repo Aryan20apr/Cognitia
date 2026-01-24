@@ -146,10 +146,12 @@ tavily:
   api:
     key: ${TAVILY_API_KEY}
     url: https://api.tavily.com/search
+    extract:
+      url: https://api.tavily.com/extract
     max_results: 3
     topic: general
     search_depth: basic
-    chunks_per_source: 3
+    chunks_per_source: 4
     include_answer: advanced
     include_raw_content: true
     include_images: false
