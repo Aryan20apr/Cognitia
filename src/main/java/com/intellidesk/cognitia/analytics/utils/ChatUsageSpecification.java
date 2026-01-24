@@ -14,12 +14,6 @@ public class ChatUsageSpecification {
                 : cb.equal(root.get("user").get("id"), userId);
     }
 
-    /** Filter by Tenant ID */
-    public static Specification<ChatUsage> hasTenantId(UUID tenantId) {
-        return (root, query, cb) -> tenantId == null ? null 
-                : cb.equal(root.get("tenant").get("id"), tenantId);
-    }
-
     /** Filter by Thread ID */
     public static Specification<ChatUsage> hasThreadId(UUID threadId) {
         return (root, query, cb) -> threadId == null ? null 

@@ -126,10 +126,10 @@ public class ChatController {
         @RequestBody UserMessageDTO userMessageDTO
     ){
         return Flux.defer(() -> {
-            if (userMessageDTO.getThreadId() == null) {
-                ChatThread chatThread = chatService.createNewThread();
-                userMessageDTO.setThreadId(chatThread.getId().toString());
-            }
+            // if (userMessageDTO.getThreadId() == null) {
+            //     ChatThread chatThread = chatService.createNewThread();
+            //     userMessageDTO.setThreadId(chatThread.getId().toString());
+            // }
             return chatService.streamUserMessage(userMessageDTO);
         })
         .onErrorResume(ThreadBusyException.class, e -> {

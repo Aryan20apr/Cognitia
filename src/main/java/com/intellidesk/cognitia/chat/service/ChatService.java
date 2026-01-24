@@ -16,7 +16,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.chat.models.dtos.ChatMessageDTO;
 import com.intellidesk.cognitia.chat.models.dtos.ChatThreadDTO;
 import com.intellidesk.cognitia.chat.models.dtos.CustomChatResponse;
@@ -26,6 +25,7 @@ import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.repository.ChatMessageRepository;
 import com.intellidesk.cognitia.chat.repository.ChatThreadRepository;
 import com.intellidesk.cognitia.chat.service.ThreadLockService.ThreadLockStatus;
+import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;

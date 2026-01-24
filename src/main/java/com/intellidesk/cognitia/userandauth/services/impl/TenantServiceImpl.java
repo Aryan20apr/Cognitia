@@ -23,7 +23,7 @@ import com.intellidesk.cognitia.userandauth.services.TenantService;
 import com.intellidesk.cognitia.userandauth.services.UserService;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,7 +42,7 @@ public class TenantServiceImpl implements TenantService {
         return tenantRepository.existsById(UUID.fromString(id));
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public TenantDTO createTenant(TenantDTO tenantDTO){
 

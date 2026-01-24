@@ -10,7 +10,7 @@ public interface ChatUsageService {
     
     public ChatUsageDetailsDTO saveChatUsage(ChatUsageDetailsDTO chatUsageDetailsDTO);
 
-    public List<ChatUsageDetailsDTO> getChatUsageData(String userId, String teantId, String threadId);
+    public List<ChatUsageDetailsDTO> getChatUsageData(String userId, String threadId);
 
     public Optional<ChatUsageDetailsDTO> findByRequestId(String requestId);
 
