@@ -10,6 +10,8 @@ import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.Filters;
 
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
@@ -30,6 +32,7 @@ import lombok.*;
         @Index(name = "idx_cue_user", columnList = "user_id"),
         @Index(name = "idx_cue_request", columnList = "request_id")
 })
+@Filters(@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId"))
 public class ChatUsage extends TenantAwareEntity {
 
     @Id

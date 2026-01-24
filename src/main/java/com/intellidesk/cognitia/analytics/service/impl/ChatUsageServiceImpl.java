@@ -1,4 +1,4 @@
-package com.intellidesk.cognitia.analytics.service;
+package com.intellidesk.cognitia.analytics.service.impl;
 
 import java.util.List;
 import java.util.Optional;
@@ -9,9 +9,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
 import com.intellidesk.cognitia.analytics.models.entity.ChatUsage;
 import com.intellidesk.cognitia.analytics.repository.ChatUsageRepository;
+import com.intellidesk.cognitia.analytics.service.ChatUsageService;
 import com.intellidesk.cognitia.analytics.utils.ChatUsageMapper;
 import com.intellidesk.cognitia.analytics.utils.ChatUsageSpecification;
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
@@ -49,31 +51,31 @@ public class ChatUsageServiceImpl implements ChatUsageService {
         return chatUsageMapper.toDTO(saved);
     }
 
-    @Override
-public List<ChatUsageDetailsDTO> getChatUsageData(String userId, String tenantId, String threadId) {
+@Override
+@Transactional(readOnly = true)
+public List<ChatUsageDetailsDTO> getChatUsageData(String userId, String threadId) {
     
     UUID userUUID = null;
-    UUID tenantUUID = null;
     UUID threadUUID = null;
 
     try {
         if (userId != null) userUUID = UUID.fromString(userId);
-        if (tenantId != null) tenantUUID = UUID.fromString(tenantId);
+       
         if (threadId != null) threadUUID = UUID.fromString(threadId);
+
     } catch (IllegalArgumentException ex) {
         throw new IllegalArgumentException("Invalid UUID format", ex);
     }
 
-    // 2️⃣ Build dynamic JPA Specification
+    
     Specification<ChatUsage> spec = Specification
             .where(userUUID != null ? ChatUsageSpecification.hasUserId(userUUID) : null)
-            .and(tenantUUID != null ? ChatUsageSpecification.hasTenantId(tenantUUID) : null)
             .and(threadUUID != null ? ChatUsageSpecification.hasThreadId(threadUUID) : null);
 
-    // 3️⃣ Fetch data from repository
+    
     List<ChatUsage> chatUsages = chatUsageRepository.findAll(spec);
 
-    // 4️⃣ Map entities to DTOs using MapStruct
+    
     return chatUsages.stream()
                      .map(chatUsageMapper::toDTO)
                      .collect(Collectors.toList());

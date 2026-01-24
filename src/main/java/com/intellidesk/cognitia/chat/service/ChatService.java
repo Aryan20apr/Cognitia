@@ -16,7 +16,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.chat.models.dtos.ChatMessageDTO;
 import com.intellidesk.cognitia.chat.models.dtos.ChatThreadDTO;
 import com.intellidesk.cognitia.chat.models.dtos.CustomChatResponse;
@@ -25,6 +24,7 @@ import com.intellidesk.cognitia.chat.models.entities.ChatMessage;
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.repository.ChatMessageRepository;
 import com.intellidesk.cognitia.chat.repository.ChatThreadRepository;
+import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
@@ -230,6 +230,9 @@ public class ChatService {
         // Wrap synchronous setup in Mono.fromCallable for proper reactive error handling
         return Mono.fromCallable(() -> {
             // Parse and validate threadId
+            if(message.getThreadId() == null){
+                throw new RuntimeException("Thread ID not found");
+            }
             final UUID threadId = UUID.fromString(message.getThreadId());
 
             String requestId = message.getRequestId();

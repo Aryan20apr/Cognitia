@@ -106,10 +106,10 @@ public class ChatController {
 ){
 
         return Flux.defer(() -> {
-            if (userMessageDTO.getThreadId() == null) {
-                ChatThread chatThread = chatService.createNewThread();
-                userMessageDTO.setThreadId(chatThread.getId().toString());
-            }
+            // if (userMessageDTO.getThreadId() == null) {
+            //     ChatThread chatThread = chatService.createNewThread();
+            //     userMessageDTO.setThreadId(chatThread.getId().toString());
+            // }
             return chatService.streamUserMessage(userMessageDTO);
         })
         .onErrorResume(IllegalArgumentException.class, e -> {
