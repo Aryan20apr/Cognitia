@@ -32,5 +32,11 @@ public interface QuotaService {
     TenantQuotaDTO provisionQuota(UUID tenantId, QuotaProvisionRequest request);
 
     void renewQuotaCycle(UUID tenantId);
+
+    /** Check if tenant can upload a resource (within quota limit) */
+    boolean canUploadResource(UUID tenantId);
+
+    /** Increment the resource count for a tenant after successful upload */
+    void incrementResourceCount(UUID tenantId);
 }
 
