@@ -25,6 +25,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Entity
 @Data
@@ -33,6 +34,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @EqualsAndHashCode(callSuper=true)
 @Filters(@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId"))
+@ToString
 @Table(
     name = "orders",
     indexes = {
@@ -61,7 +63,7 @@ import lombok.NoArgsConstructor;
     }
 )
 
-public class Order extends TenantAwareEntity {
+public class PaymentOrder extends TenantAwareEntity {
 
     @Id
     @GeneratedUuidV7
@@ -96,6 +98,10 @@ public class Order extends TenantAwareEntity {
     @Column(name = "notes", columnDefinition = "jsonb")
     private Map<String, Object> notes;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "raw_order", columnDefinition = "jsonb")
+    private Map<String, Object> rawOrder;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -112,4 +118,6 @@ public class Order extends TenantAwareEntity {
     void onUpdate() {
         updatedAt = OffsetDateTime.now();
     }
+
+
 }
