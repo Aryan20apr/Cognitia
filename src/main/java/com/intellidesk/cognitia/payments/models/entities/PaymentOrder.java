@@ -96,7 +96,7 @@ public class PaymentOrder extends TenantAwareEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "notes", columnDefinition = "jsonb")
-    private Map<String, Object> notes;
+    private String notes;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "raw_order", columnDefinition = "jsonb")

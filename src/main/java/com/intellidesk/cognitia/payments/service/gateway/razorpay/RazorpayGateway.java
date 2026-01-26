@@ -1,11 +1,12 @@
 package com.intellidesk.cognitia.payments.service.gateway.razorpay;
 
-import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.Date;
 import java.util.UUID;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.intellidesk.cognitia.payments.models.dtos.OrderCreationDTO;
@@ -24,17 +25,18 @@ import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Slf4j
+@Service
 public class RazorpayGateway implements PaymentGateway {
 
     private final RazorpayClient razorpayClient;
-    OrderRepository orderRepository;
+    private final OrderRepository orderRepository;
 
     @Override
     @Transactional
     public OrderDTO createOrder(OrderCreationDTO orderCreationDTO) {
 
         // TODO: Decouple the order persistance from the gateway, instead return complete gateway agnostic orderdto to a parent service layer`
-        
+
         JSONObject orderRequest = new JSONObject();
         orderRequest.put("amount", orderCreationDTO.getAmount() * 100);
         orderRequest.put("currency", orderCreationDTO.getCurrency());
@@ -48,8 +50,9 @@ public class RazorpayGateway implements PaymentGateway {
             return mapToOrderDTO(newPaymentOrder);
         } catch (RazorpayException ex) {
             log.error("[RazorpayGateway] [createOrder] Error while creating razorpay order: {}",ex.getMessage());
+            throw new ApiException("Failed to create order", ex, null);
         }
-        return null;
+      
     }
 
     private OrderDTO mapToOrderDTO(PaymentOrder paymentOrder) {
@@ -75,19 +78,40 @@ public class RazorpayGateway implements PaymentGateway {
 
         PaymentOrder paymentOrder = PaymentOrder.builder()
             .orderId(order.get("id"))
-            .amount(order.get("amount"))
-            .amountDue(order.get("amount_due"))
-            .amountPaid(order.get("amount_paid"))
+            .orderRef(UUID.randomUUID().toString())
+            .amount(((Number) order.get("amount")).longValue())
+            .amountDue(((Number)order.get("amount_due")).longValue())
+            .amountPaid(((Number)order.get("amount_paid")).longValue())
             .attempts(order.get("attempts"))
-            .createdAt(OffsetDateTime.ofInstant(Instant.ofEpochSecond(order.get("created_at")), ZoneId.systemDefault()))
+            .createdAt(((Date)(order.get("created_at")))
+            .toInstant()
+            .atZone(ZoneId.systemDefault())
+            .toOffsetDateTime())
             .currency(order.get("currency"))
-            .notes(order.get("notes"))
+            .notes(convertNotesToString(order.get("notes")))
             .status(order.get("status"))
             .rawOrder(order.toJson().toMap())
             .build();
 
             paymentOrder.setTenantId(tenantId);
             return paymentOrder;
+    }
+
+    private String convertNotesToString(Object notes) {
+        if (notes == null) {
+            return null;
+        }
+        if (notes instanceof JSONObject jsonObject) {
+            return jsonObject.toString();
+        }
+        if (notes instanceof JSONArray jsonArray) {
+            return jsonArray.toString();
+        }
+        if (notes instanceof String string) {
+            return string;
+        }
+        // For any other type, convert to string
+        return notes.toString();
     }
 
 }
