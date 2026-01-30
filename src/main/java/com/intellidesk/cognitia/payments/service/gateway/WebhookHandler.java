@@ -4,5 +4,5 @@ import java.util.Map;
 
 public interface WebhookHandler {
     
-    public void handlePaymentWebhook(Map<String,Object> paymentEvent);
+    public void handlePaymentWebhook(Map<String,Object> payload);
 }

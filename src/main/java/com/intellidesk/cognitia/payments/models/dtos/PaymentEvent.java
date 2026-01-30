@@ -1,6 +1,7 @@
 package com.intellidesk.cognitia.payments.models.dtos;
 
 import java.time.Instant;
+import java.util.Map;
 
 import com.intellidesk.cognitia.payments.models.enums.Gateway;
 
@@ -13,10 +14,10 @@ public class PaymentEvent {
 
     private Gateway gateway;
     private String eventType;
-    private String gatewayPaymentId;
-    private String gatewayOrderId;
-    private String gatewayStatus;
-    private String rawPayload;
-    private Instant occurredAt;
+    private String paymentId;
+    private String orderId;
+    private String status;
+    private Map<String,Object> rawPayload;
+    private Instant timeStamp;
 
 }
