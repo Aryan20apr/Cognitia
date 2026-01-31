@@ -2,16 +2,20 @@ package com.intellidesk.cognitia.payments.service.gateway.razorpay;
 
 import java.time.ZoneId;
 import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.intellidesk.cognitia.payments.models.dtos.OrderCreationDTO;
 import com.intellidesk.cognitia.payments.models.dtos.OrderDTO;
+import com.intellidesk.cognitia.payments.models.dtos.razopayDtos.PaymentVerificationDTO;
 import com.intellidesk.cognitia.payments.models.entities.PaymentOrder;
+import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
 import com.intellidesk.cognitia.payments.repository.OrderRepository;
 import com.intellidesk.cognitia.payments.service.gateway.PaymentGateway;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
@@ -19,6 +23,7 @@ import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import com.razorpay.Utils;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +35,9 @@ public class RazorpayGateway implements PaymentGateway {
 
     private final RazorpayClient razorpayClient;
     private final OrderRepository orderRepository;
+    
+    @Value("${razorpay.api.secret}")
+    private String razorpayApiSecret;
 
     @Override
     @Transactional
@@ -112,6 +120,34 @@ public class RazorpayGateway implements PaymentGateway {
         }
         // For any other type, convert to string
         return notes.toString();
+    }
+
+    @Override
+    public Boolean verifyPayment(PaymentVerificationDTO paymentVerificationDTO) {
+      Optional<String> optionalOrder =  orderRepository.findOrderIdByOrderRef(paymentVerificationDTO.orderRef());
+
+      if(!optionalOrder.isPresent()){
+        throw new ApiException("Order not found");
+      }
+
+        JSONObject options = new JSONObject();
+        options.put("razorpay_order_id", optionalOrder.get());
+        options.put("razorpay_payment_id", paymentVerificationDTO.paymentId());
+        options.put("razorpay_signature", paymentVerificationDTO.signature());
+
+        try {
+            Boolean res = Utils.verifyPaymentSignature(options, razorpayApiSecret);
+            if(res){
+                orderRepository.updateVerificationByOrderRef(paymentVerificationDTO.orderRef(), PaymentVerification.SUCCESS);
+            } else {
+                orderRepository.updateVerificationByOrderRef(paymentVerificationDTO.orderRef(), PaymentVerification.FAILED);
+            }
+            return res;
+        } catch (RazorpayException ex) {
+            log.error("Exception occured during payment verification: {}",ex.getMessage());
+            orderRepository.updateVerificationByOrderRef(paymentVerificationDTO.orderRef(), PaymentVerification.FAILED);
+            return false;
+        }
     }
 
 }

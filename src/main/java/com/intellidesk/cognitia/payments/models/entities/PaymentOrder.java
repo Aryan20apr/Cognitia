@@ -9,13 +9,16 @@ import org.hibernate.annotations.Filters;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
 import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
 import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
 
 import jakarta.persistence.Column;
-import jakarta.persistence.Table;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -90,6 +93,10 @@ public class PaymentOrder extends TenantAwareEntity {
 
     @Column(name = "status", nullable = false, length = 20)
     private String status;
+
+    @Column(name = "payment_verfication")
+    @Enumerated(EnumType.STRING)
+    private PaymentVerification verification;
 
     @Column(name = "attempts", nullable = false)
     private Integer attempts;
