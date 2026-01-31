@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.PaymentRequiredException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.TenantNotFoundException;
 
@@ -103,6 +104,17 @@ public class GlobalExceptionHandler {
                 "timestamp", Instant.now()
         );
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+    }
+
+    @ExceptionHandler(PaymentRequiredException.class)
+    public ResponseEntity<ExceptionApiResponse<?>> handlePaymentRequired(PaymentRequiredException ex) {
+        log.warn("[GlobalExceptionHandler] : [handlePaymentRequired] : {}", ex.getMessage());
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message(ex.getMessage())
+                .data(ex.getData())
+                .code(402)
+                .build();
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(response);
     }
 
      @ExceptionHandler(DuplicateRequestInProgressException.class)

@@ -12,6 +12,10 @@ import com.intellidesk.cognitia.payments.models.dtos.OrderCreationDTO;
 import com.intellidesk.cognitia.payments.models.dtos.OrderDTO;
 import com.intellidesk.cognitia.payments.service.gateway.PaymentGateway;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,10 +24,25 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/api/v1/order")
 @Slf4j
 @RequiredArgsConstructor
+@Tag(name = "Order", description = "Payment order creation and management APIs")
 public class OrderController {
 
     private final PaymentGateway paymentGateway;
 
+    @Operation(
+        summary = "Create Razorpay order",
+        description = "Creates a new payment order in Razorpay and returns order details including orderId (Razorpay order ID) " +
+                      "and orderRef (internal reference UUID). The orderRef should be stored client-side and used for payment verification."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "201",
+        description = "Order created successfully",
+        content = @Content(schema = @Schema(implementation = ApiResponse.class))
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+        responseCode = "400",
+        description = "Invalid order creation request"
+    )
     @PostMapping
     public ResponseEntity<ApiResponse<?>> createRazorpayOrder(@RequestBody OrderCreationDTO order) {
         
