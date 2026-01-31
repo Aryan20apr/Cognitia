@@ -31,6 +31,12 @@ import com.intellidesk.cognitia.analytics.service.ChatUsageService;
 import com.intellidesk.cognitia.analytics.service.QuotaService;
 import com.intellidesk.cognitia.analytics.service.RedisCounterService;
 import com.intellidesk.cognitia.analytics.utils.TenantQuotaMapper;
+import com.intellidesk.cognitia.payments.models.entities.PaymentOrder;
+import com.intellidesk.cognitia.payments.models.enums.FulfillmentStatus;
+import com.intellidesk.cognitia.payments.models.enums.PaymentPurpose;
+import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
+import com.intellidesk.cognitia.payments.repository.OrderRepository;
+import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.PaymentRequiredException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +58,7 @@ public class QuotaServiceImpl implements QuotaService {
     private final AggregatedUsageRepository aggregatedUsageRepository;
     private final PlanRepository planRepository;
     private final TenantQuotaMapper mapper;
+    private final OrderRepository orderRepository;
 
     @Override
     @Transactional
@@ -234,24 +241,39 @@ public class QuotaServiceImpl implements QuotaService {
     @Override
     @Transactional
     public TenantQuotaDTO assignPlan(UUID tenantId, AssignPlanRequest request) {
-        Plan plan = planRepository.findById(request.getPlanId())
+        Plan targetPlan = planRepository.findById(request.getPlanId())
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found"));
 
-        TenantQuota quota = tenantQuotaRepository.findByTenantId(tenantId)
-                .orElseGet(() -> TenantQuota.builder()
+        // Fetch existing quota and current plan (if any)
+        Optional<TenantQuota> existingQuotaOpt = tenantQuotaRepository.findByTenantId(tenantId);
+        Plan currentPlan = existingQuotaOpt.map(TenantQuota::getPlanId).orElse(null);
 
+        // Check if this is an upgrade and validate payment
+        PaymentOrder paymentOrder = null;
+        if (isUpgrade(currentPlan, targetPlan)) {
+            log.info("Plan change for tenant {} is an upgrade from {} to {}. Validating payment.",
+                    tenantId, 
+                    currentPlan != null ? currentPlan.getName() : "none",
+                    targetPlan.getName());
+            paymentOrder = validateUpgradePayment(request.getOrderRef(), targetPlan.getId(), tenantId);
+        } else {
+            log.info("Plan change for tenant {} is a downgrade or new assignment. No payment required.", tenantId);
+        }
+
+        // Proceed with plan assignment
+        TenantQuota quota = existingQuotaOpt.orElseGet(() -> TenantQuota.builder()
                         .status(QuotaStatus.ACTIVE)
                         .build());
         quota.setTenantId(tenantId);
-        quota.setPlanId(plan);
+        quota.setPlanId(targetPlan);
         quota.setBillingCycleStart(LocalDate.now());
         quota.setBillingCycleEnd(LocalDate.now().plusMonths(1).minusDays(1));
 
-        quota.setMaxPromptTokens(plan.getIncludedPromptTokens());
-        quota.setMaxCompletionTokens(plan.getIncludedCompletionTokens());
-        quota.setMaxTotalTokens(plan.getIncludedTotalTokens());
-        quota.setMaxResources(plan.getIncludedDocs() != null ? plan.getIncludedDocs().intValue() : null);
-        quota.setMaxUsers(plan.getIncludedUsers() != null ? plan.getIncludedUsers().intValue() : null);
+        quota.setMaxPromptTokens(targetPlan.getIncludedPromptTokens());
+        quota.setMaxCompletionTokens(targetPlan.getIncludedCompletionTokens());
+        quota.setMaxTotalTokens(targetPlan.getIncludedTotalTokens());
+        quota.setMaxResources(targetPlan.getIncludedDocs() != null ? targetPlan.getIncludedDocs().intValue() : null);
+        quota.setMaxUsers(targetPlan.getIncludedUsers() != null ? targetPlan.getIncludedUsers().intValue() : null);
 
         if (request.isResetUsage()) {
             quota.setUsedPromptTokens(0L);
@@ -262,7 +284,100 @@ public class QuotaServiceImpl implements QuotaService {
         }
 
         TenantQuota saved = tenantQuotaRepository.save(quota);
+
+        // Mark payment as fulfilled after successful plan assignment (prevents replay)
+        if (paymentOrder != null) {
+            markPaymentFulfilled(paymentOrder);
+            log.info("Payment order {} marked as fulfilled for tenant {} plan upgrade.", 
+                    paymentOrder.getOrderRef(), tenantId);
+        }
+
         return mapper.toDto(saved);
+    }
+
+    // ==================== Plan Change Payment Validation Utility Methods ====================
+
+    /**
+     * Determines if changing from currentPlan to targetPlan is an upgrade (higher price).
+     * A plan change is considered an upgrade if the target plan has a higher pricePerMonth.
+     * 
+     * @param currentPlan The current plan (can be null for new tenants)
+     * @param targetPlan The plan being assigned
+     * @return true if this is an upgrade requiring payment
+     */
+    private boolean isUpgrade(Plan currentPlan, Plan targetPlan) {
+        // New tenant with no existing plan - check if target plan has a price
+        if (currentPlan == null || currentPlan.getPricePerMonth() == null) {
+            return targetPlan.getPricePerMonth() != null 
+                && targetPlan.getPricePerMonth().compareTo(BigDecimal.ZERO) > 0;
+        }
+        // Target plan is free - not an upgrade
+        if (targetPlan.getPricePerMonth() == null) {
+            return false;
+        }
+        // Compare prices
+        return targetPlan.getPricePerMonth().compareTo(currentPlan.getPricePerMonth()) > 0;
+    }
+
+    /**
+     * Validates and returns the payment order for an upgrade.
+     * Performs multi-layer validation:
+     * 1. Order exists
+     * 2. Tenant ownership matches
+     * 3. Purpose type is PLAN_UPGRADE
+     * 4. Purpose ref ID matches target plan ID
+     * 5. Payment is verified (SUCCESS)
+     * 6. Payment has not been used (UNFULFILLED)
+     * 
+     * @param orderRef The order reference from the request
+     * @param targetPlanId The plan ID being upgraded to
+     * @param tenantId The tenant performing the upgrade
+     * @return The validated PaymentOrder
+     * @throws PaymentRequiredException if any validation fails
+     */
+    private PaymentOrder validateUpgradePayment(String orderRef, UUID targetPlanId, UUID tenantId) {
+        if (orderRef == null || orderRef.isBlank()) {
+            throw new PaymentRequiredException("orderRef is required for plan upgrade");
+        }
+        
+        PaymentOrder order = orderRepository.findByOrderRef(orderRef)
+            .orElseThrow(() -> new PaymentRequiredException("Payment order not found"));
+        
+    
+        if (!tenantId.equals(order.getTenantId())) {
+            log.warn("Payment order {} does not belong to tenant {}. Order tenant: {}", 
+                    orderRef, tenantId, order.getTenantId());
+            throw new PaymentRequiredException("Payment order does not belong to this tenant");
+        }
+
+        if (order.getPurposeType() != PaymentPurpose.PLAN_UPGRADE) {
+            throw new PaymentRequiredException("Payment order is not for plan upgrade. Purpose: " + order.getPurposeType());
+        }
+
+        if (!targetPlanId.equals(order.getPurposeRefId())) {
+            throw new PaymentRequiredException("Payment order is for a different plan. Expected: " + targetPlanId + ", Found: " + order.getPurposeRefId());
+        }
+
+        if (order.getVerification() != PaymentVerification.SUCCESS) {
+            throw new PaymentRequiredException("Payment has not been verified. Status: " + order.getVerification());
+        }
+
+        if (order.getFulfillmentStatus() != FulfillmentStatus.UNFULFILLED) {
+            throw new PaymentRequiredException("Payment has already been used. Status: " + order.getFulfillmentStatus());
+        }
+        
+        return order;
+    }
+
+    /**
+     * Marks a payment order as fulfilled after successful plan assignment.
+     * This prevents the same payment from being used again (replay attack prevention).
+     * 
+     * @param order The payment order to mark as fulfilled
+     */
+    private void markPaymentFulfilled(PaymentOrder order) {
+        order.setFulfillmentStatus(FulfillmentStatus.FULFILLED);
+        orderRepository.save(order);
     }
 
     @Override

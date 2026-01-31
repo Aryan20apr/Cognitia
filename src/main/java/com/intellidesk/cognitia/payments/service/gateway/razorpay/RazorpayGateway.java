@@ -15,6 +15,7 @@ import com.intellidesk.cognitia.payments.models.dtos.OrderCreationDTO;
 import com.intellidesk.cognitia.payments.models.dtos.OrderDTO;
 import com.intellidesk.cognitia.payments.models.dtos.razopayDtos.PaymentVerificationDTO;
 import com.intellidesk.cognitia.payments.models.entities.PaymentOrder;
+import com.intellidesk.cognitia.payments.models.enums.FulfillmentStatus;
 import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
 import com.intellidesk.cognitia.payments.repository.OrderRepository;
 import com.intellidesk.cognitia.payments.service.gateway.PaymentGateway;
@@ -52,7 +53,7 @@ public class RazorpayGateway implements PaymentGateway {
             UUID tenantId = TenantContext.getTenantId();
             Order order = razorpayClient.orders.create(orderRequest);
 
-            PaymentOrder paymentOrder = mapToPaymentOrder(order, tenantId);
+            PaymentOrder paymentOrder = mapToPaymentOrder(order, tenantId, orderCreationDTO);
 
             PaymentOrder newPaymentOrder = orderRepository.save(paymentOrder);
             return mapToOrderDTO(newPaymentOrder);
@@ -76,7 +77,7 @@ public class RazorpayGateway implements PaymentGateway {
             .updatedAt(paymentOrder.getUpdatedAt() != null ? paymentOrder.getUpdatedAt().toString() : null)
             .build();
     }
-    private PaymentOrder mapToPaymentOrder(Order order, UUID tenantId) {
+    private PaymentOrder mapToPaymentOrder(Order order, UUID tenantId, OrderCreationDTO orderCreationDTO) {
 
         if(order.get("error") != null){
             log.error("[RazorpayGateway] [mapToPaymentOrder] Error from Razorpay order response: {}", order.toJson().toString());
@@ -99,6 +100,10 @@ public class RazorpayGateway implements PaymentGateway {
             .notes(convertNotesToString(order.get("notes")))
             .status(order.get("status"))
             .rawOrder(order.toJson().toMap())
+            // Purpose tracking fields
+            .purposeType(orderCreationDTO.getPurposeType())
+            .purposeRefId(orderCreationDTO.getPurposeRefId())
+            .fulfillmentStatus(FulfillmentStatus.UNFULFILLED)
             .build();
 
             paymentOrder.setTenantId(tenantId);

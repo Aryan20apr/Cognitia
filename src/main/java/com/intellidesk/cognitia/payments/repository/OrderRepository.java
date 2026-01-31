@@ -19,4 +19,6 @@ public interface OrderRepository extends JpaRepository<PaymentOrder, UUID> {
     @Modifying
     @Query("UPDATE PaymentOrder p SET p.verification = :verification WHERE p.orderRef = :orderRef")
     int updateVerificationByOrderRef(@Param("orderRef") String orderRef, @Param("verification") PaymentVerification verification);
+
+    Optional<PaymentOrder> findByOrderRef(String orderRef);
 }
