@@ -1,10 +1,13 @@
 package com.intellidesk.cognitia.payments.controller;
 
+import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
@@ -49,6 +52,14 @@ public class OrderController {
         OrderDTO newOrder = paymentGateway.createOrder(order);
         ApiResponse<OrderDTO> apiResponse = new ApiResponse<>("Order Created Successfully", true, newOrder);
         return new ResponseEntity<>(apiResponse, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/status")
+    public ResponseEntity<?> getOrderStatus(@RequestParam String orderRef) {
+        String status = paymentGateway.getOrderStatus(orderRef);
+        JSONObject response = new JSONObject();
+        response.put("status", status);
+        return ResponseEntity.ok(new ApiResponse<>("Order Status", true, response));
     }
     
     

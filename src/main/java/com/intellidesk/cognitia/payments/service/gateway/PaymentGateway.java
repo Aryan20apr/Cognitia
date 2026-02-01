@@ -6,9 +6,8 @@ import com.intellidesk.cognitia.payments.models.dtos.razopayDtos.PaymentVerifica
 
 public interface PaymentGateway {
 
-    
-
     public OrderDTO createOrder(OrderCreationDTO orderCreationDTO);
     public Boolean verifyPayment(PaymentVerificationDTO paymentVerificationDTO);
+    public String getOrderStatus(String orderRef);
     
 }

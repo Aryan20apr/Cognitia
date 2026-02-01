@@ -10,7 +10,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import com.intellidesk.cognitia.payments.models.enums.FulfillmentStatus;
+import com.intellidesk.cognitia.payments.models.enums.OrderStatus;
 import com.intellidesk.cognitia.payments.models.enums.PaymentPurpose;
+import com.intellidesk.cognitia.payments.models.enums.PaymentStatus;
 import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
 import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
 import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
@@ -94,7 +96,12 @@ public class PaymentOrder extends TenantAwareEntity {
     private String currency;
 
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
+
+    @Column(name = "payment_status", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus;
 
     @Column(name = "payment_verfication")
     @Enumerated(EnumType.STRING)

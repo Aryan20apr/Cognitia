@@ -12,6 +12,7 @@ CREATE TABLE orders (
 
     currency        CHAR(3) NOT NULL,
     status          VARCHAR(20) NOT NULL,
+    payment_status  VARCHAR(20 NOT NULL,
     attempts        INTEGER NOT NULL,
 
     notes           JSONB,

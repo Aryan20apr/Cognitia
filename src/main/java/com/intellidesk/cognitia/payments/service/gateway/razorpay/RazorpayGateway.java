@@ -8,14 +8,19 @@ import java.util.UUID;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
+import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.payments.models.dtos.OrderCreationDTO;
 import com.intellidesk.cognitia.payments.models.dtos.OrderDTO;
 import com.intellidesk.cognitia.payments.models.dtos.razopayDtos.PaymentVerificationDTO;
 import com.intellidesk.cognitia.payments.models.entities.PaymentOrder;
 import com.intellidesk.cognitia.payments.models.enums.FulfillmentStatus;
+import com.intellidesk.cognitia.payments.models.enums.OrderStatus;
 import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
 import com.intellidesk.cognitia.payments.repository.OrderRepository;
 import com.intellidesk.cognitia.payments.service.gateway.PaymentGateway;
@@ -72,7 +77,7 @@ public class RazorpayGateway implements PaymentGateway {
             .amountPaid(paymentOrder.getAmountPaid())
             .amountDue(paymentOrder.getAmountDue())
             .currency(paymentOrder.getCurrency())
-            .status(paymentOrder.getStatus())
+            .status(paymentOrder.getStatus().name())
             .createdAt(paymentOrder.getCreatedAt() != null ? paymentOrder.getCreatedAt().toString() : null)
             .updatedAt(paymentOrder.getUpdatedAt() != null ? paymentOrder.getUpdatedAt().toString() : null)
             .build();
@@ -155,6 +160,18 @@ public class RazorpayGateway implements PaymentGateway {
             orderRepository.updateVerificationByOrderRef(paymentVerificationDTO.orderRef(), PaymentVerification.FAILED);
             return false;
         }
+    }
+
+
+    @Override
+    public String getOrderStatus(String orderRef) {
+        Optional<PaymentOrder> order = orderRepository.findByOrderRef(orderRef);
+        if(!order.isPresent()){
+         log.error("[RazorpayGateway] [getPaymentStatus] Order not found for orderRef: {}", orderRef);
+           return "FAILED";
+        }
+        PaymentOrder paymentOrder = order.get();
+        return paymentOrder.getStatus().name();
     }
 
 }
