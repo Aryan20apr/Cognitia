@@ -47,7 +47,7 @@ public class RazorpayGateway implements PaymentGateway {
         // TODO: Decouple the order persistance from the gateway, instead return complete gateway agnostic orderdto to a parent service layer`
 
         JSONObject orderRequest = new JSONObject();
-        orderRequest.put("amount", orderCreationDTO.getAmount() * 100);
+        orderRequest.put("amount", orderCreationDTO.getAmount());
         orderRequest.put("currency", orderCreationDTO.getCurrency());
         try {
             UUID tenantId = TenantContext.getTenantId();
@@ -128,7 +128,9 @@ public class RazorpayGateway implements PaymentGateway {
     }
 
     @Override
+    @Transactional
     public Boolean verifyPayment(PaymentVerificationDTO paymentVerificationDTO) {
+      log.info("[RazorpayGateway] [verifyPayment] Received PaymentVerificationDTO: {}", paymentVerificationDTO);
       Optional<String> optionalOrder =  orderRepository.findOrderIdByOrderRef(paymentVerificationDTO.orderRef());
 
       if(!optionalOrder.isPresent()){
