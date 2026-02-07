@@ -1,8 +1,9 @@
 package com.intellidesk.cognitia.analytics.controllers;
 
-
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,16 +27,33 @@ public class ChatUsageController {
     private final ChatUsageService chatUsageService;
 
     @GetMapping()
-    @Operation(summary = "Get chat usage data", description = "Get chat usage optionally based on user id or thread id")
-    public ResponseEntity<ApiResponse<List<ChatUsageDetailsDTO>>> getChatUsageData(@RequestParam(required = false) String userId, @RequestParam(required = false) String threadId) {
+    @Operation(
+        summary = "Get chat usage data with pagination", 
+        description = "Get paginated chat usage data optionally filtered by user id or thread id. Results are sorted by creation date descending by default."
+    )
+    public ResponseEntity<ApiResponse<Page<ChatUsageDetailsDTO>>> getChatUsageData(
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String threadId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String sort) {
 
-        List<ChatUsageDetailsDTO> chatUsageData = chatUsageService.getChatUsageData(userId, threadId);
-        return ResponseEntity.ok(ApiResponse.<List<ChatUsageDetailsDTO>>builder()
+        // Parse sort parameter
+        String[] sortParams = sort.split(",");
+        String sortField = sortParams[0];
+        Sort.Direction direction = sortParams.length > 1 && "asc".equalsIgnoreCase(sortParams[1]) 
+            ? Sort.Direction.ASC 
+            : Sort.Direction.DESC;
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+        
+        Page<ChatUsageDetailsDTO> chatUsageData = chatUsageService.getChatUsageData(userId, threadId, pageable);
+        
+        return ResponseEntity.ok(ApiResponse.<Page<ChatUsageDetailsDTO>>builder()
                 .message("Chat usage data fetched successfully")
                 .success(true)
                 .data(chatUsageData)
                 .build());
-
     }
     
 }
