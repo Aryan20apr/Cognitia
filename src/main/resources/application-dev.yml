@@ -56,7 +56,6 @@ spring:
           log-requests: true
           log-responses: true
         completions-path: ${OPENAI_COMPLETIONS_PATH:/chat/completions}
-
   
   # huggingface:
   #   api-key: ${HUGGINGFACE_API_KEY}
@@ -82,6 +81,10 @@ spring:
       properties:
         enable:
           idempotence: ${KAFKA_IDEMPOTENCE:true}
+
+title-generation:
+  api-key : ${GROQ_API_KEY}
+  model: ${TITLE_GENERATION_MODEL:llama-3.1-8b-instant}
 
 ingestion:
   topic:
@@ -170,3 +173,5 @@ razorpay:
   api:
     key: ${RAZORPAY_API_KEY}
     secret: ${RAZORPAY_API_SECRET}
+  webhook:
+    secret: ${RAZORPAY_WEBHOOK_SECRET}
