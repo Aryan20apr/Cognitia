@@ -8,13 +8,9 @@ import java.util.UUID;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
-import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.payments.models.dtos.OrderCreationDTO;
 import com.intellidesk.cognitia.payments.models.dtos.OrderDTO;
 import com.intellidesk.cognitia.payments.models.dtos.razopayDtos.PaymentVerificationDTO;
@@ -57,7 +53,7 @@ public class RazorpayGateway implements PaymentGateway {
         try {
             UUID tenantId = TenantContext.getTenantId();
             Order order = razorpayClient.orders.create(orderRequest);
-
+            log.info("[RazorpayGateway] [createOrder] Razorpay order created: {}", order.toJson().toString());
             PaymentOrder paymentOrder = mapToPaymentOrder(order, tenantId, orderCreationDTO);
 
             PaymentOrder newPaymentOrder = orderRepository.save(paymentOrder);
@@ -103,7 +99,7 @@ public class RazorpayGateway implements PaymentGateway {
             .toOffsetDateTime())
             .currency(order.get("currency"))
             .notes(convertNotesToString(order.get("notes")))
-            .status(order.get("status"))
+            .status(OrderStatus.valueOf(((String)order.get("status")).toUpperCase()))
             .rawOrder(order.toJson().toMap())
             // Purpose tracking fields
             .purposeType(orderCreationDTO.getPurposeType())
