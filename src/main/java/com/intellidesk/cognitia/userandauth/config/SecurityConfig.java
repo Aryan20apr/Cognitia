@@ -49,24 +49,14 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        
-        // Webhook endpoints - allow all origins (server-to-server calls from Razorpay)
-        CorsConfiguration webhookConfig = new CorsConfiguration();
-        webhookConfig.setAllowedOrigins(List.of("*"));
-        webhookConfig.setAllowedMethods(List.of("POST", "OPTIONS"));
-        webhookConfig.setAllowedHeaders(List.of("*"));
-        webhookConfig.setAllowCredentials(false); // Must be false when using "*" for origins
-        source.registerCorsConfiguration("/api/v1/payment/webhook", webhookConfig);
-        
-        // Default CORS config for other endpoints
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:4173", "http://localhost:5173"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
-        
         return source;
     }
 
