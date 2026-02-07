@@ -9,6 +9,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
+import com.intellidesk.cognitia.payments.models.enums.ProcessingStatus;
 
 @Entity
 @Table(
@@ -34,19 +35,11 @@ import java.util.UUID;
 @Builder
 public class Payment {
 
-    /* -----------------------------
-     * Internal identity
-     * ----------------------------- */
-
     @Id
     @GeneratedValue
     @UuidGenerator
     @Column(nullable = false, updatable = false)
     private UUID id;
-
-    /* -----------------------------
-     * Razorpay identifiers
-     * ----------------------------- */
 
     @Column(name = "payment_id", nullable = false, length = 50)
     private String paymentId;
@@ -54,23 +47,18 @@ public class Payment {
     @Column(name = "order_id", nullable = false, length = 50)
     private String orderId;
 
-    /* -----------------------------
-     * Event semantics
-     * ----------------------------- */
-
     @Column(name = "event_type", nullable = false, length = 50)
     private String eventType; 
-    // payment.authorized | payment.captured | payment.failed | payment.refunded
 
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
+    @Column(name = "processing_status", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private ProcessingStatus processingStatus;
+
     @Column(name = "event_received_at", nullable = false)
     private OffsetDateTime eventReceivedAt;
-
-    /* -----------------------------
-     * Monetary snapshot
-     * ----------------------------- */
 
     @Column(name = "amount", nullable = false)
     private Long amount;
@@ -87,19 +75,11 @@ public class Payment {
     @Column(name = "tax")
     private Long tax;
 
-    /* -----------------------------
-     * Payment attributes
-     * ----------------------------- */
-
     @Column(name = "method", length = 20)
     private String method;
 
     @Column(name = "captured")
     private Boolean captured;
-
-    /* -----------------------------
-     * Failure diagnostics
-     * ----------------------------- */
 
     @Column(name = "error_code", length = 50)
     private String errorCode;
@@ -107,24 +87,34 @@ public class Payment {
     @Column(name = "error_description")
     private String errorDescription;
 
-    /* -----------------------------
-     * Idempotency + evidence
-     * ----------------------------- */
 
     @Column(name = "idempotency_key", nullable = false, length = 100)
     private String idempotencyKey;
-    // e.g. Razorpay event_id
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "raw_payload", columnDefinition = "jsonb", nullable = false)
     private Map<String, Object> rawPayload;
 
-    /* -----------------------------
-     * Persistence timestamp
-     * ----------------------------- */
-
     @Column(name = "persisted_at", nullable = false)
     private OffsetDateTime persistedAt;
+
+    /* -----------------------------
+     * Retry tracking
+     * ----------------------------- */
+
+    @Column(name = "attempts", nullable = false)
+    @Builder.Default
+    private Integer attempts = 0;
+
+    @Column(name = "max_attempts", nullable = false)
+    @Builder.Default
+    private Integer maxAttempts = 5;
+
+    @Column(name = "last_error", length = 1000)
+    private String lastError;
+
+    @Column(name = "processed_at")
+    private OffsetDateTime processedAt;
 
     @PrePersist
     void onPersist() {

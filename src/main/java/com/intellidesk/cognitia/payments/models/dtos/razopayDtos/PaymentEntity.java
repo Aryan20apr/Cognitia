@@ -1,6 +1,6 @@
 package com.intellidesk.cognitia.payments.models.dtos.razopayDtos;
 
-import java.util.List;
+import java.util.Map;
 
 import lombok.Data;
 
@@ -26,7 +26,7 @@ public class PaymentEntity {
     private String vpa;
     private String email;
     private String contact;
-    private List<Object> notes;
+    private Map<String, Object> notes;
     private Integer fee;
     private Integer tax;
     private String error_code;
