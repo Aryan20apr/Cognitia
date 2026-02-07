@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class TenantFilter implements Filter {
 
     private static final List<String> PUBLIC_PATHS = List.of(
-        "/public", "/auth"
+        "/public", "/auth", "/api/v1/payment/webhook", "/api/v1/payment"
     );
 
     private boolean isPublicPath(ServletRequest request) {

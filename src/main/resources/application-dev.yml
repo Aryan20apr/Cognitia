@@ -164,3 +164,9 @@ tavily:
       url: https://api.tavily.com/extract
       chunks_per_source: 3
       timeout_seconds: 30
+
+
+razorpay:
+  api:
+    key: ${RAZORPAY_API_KEY}
+    secret: ${RAZORPAY_API_SECRET}

@@ -130,7 +130,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.startsWith("/auth") || path.startsWith("/public") || path.startsWith("/api/tenants/create");
+        return path.startsWith("/auth") 
+            || path.startsWith("/public") 
+            || path.startsWith("/api/tenants/create")
+            || path.equals("/api/v1/payment/webhook"); // Webhook uses signature verification, not JWT
     }
 
     private String extractTokenFromRequest(HttpServletRequest request) {
