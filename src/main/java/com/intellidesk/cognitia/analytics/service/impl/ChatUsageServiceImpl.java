@@ -1,15 +1,14 @@
 package com.intellidesk.cognitia.analytics.service.impl;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
 import com.intellidesk.cognitia.analytics.models.entity.ChatUsage;
 import com.intellidesk.cognitia.analytics.repository.ChatUsageRepository;
@@ -51,35 +50,33 @@ public class ChatUsageServiceImpl implements ChatUsageService {
         return chatUsageMapper.toDTO(saved);
     }
 
-@Override
-@Transactional(readOnly = true)
-public List<ChatUsageDetailsDTO> getChatUsageData(String userId, String threadId) {
-    
-    UUID userUUID = null;
-    UUID threadUUID = null;
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ChatUsageDetailsDTO> getChatUsageData(String userId, String threadId, Pageable pageable) {
+        
+        UUID userUUID = null;
+        UUID threadUUID = null;
 
-    try {
-        if (userId != null) userUUID = UUID.fromString(userId);
-       
-        if (threadId != null) threadUUID = UUID.fromString(threadId);
+        try {
+            if (userId != null) userUUID = UUID.fromString(userId);
+           
+            if (threadId != null) threadUUID = UUID.fromString(threadId);
 
-    } catch (IllegalArgumentException ex) {
-        throw new IllegalArgumentException("Invalid UUID format", ex);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid UUID format", ex);
+        }
+
+        
+        Specification<ChatUsage> spec = Specification
+                .where(userUUID != null ? ChatUsageSpecification.hasUserId(userUUID) : null)
+                .and(threadUUID != null ? ChatUsageSpecification.hasThreadId(threadUUID) : null);
+
+        
+        Page<ChatUsage> chatUsagesPage = chatUsageRepository.findAll(spec, pageable);
+
+        
+        return chatUsagesPage.map(chatUsageMapper::toDTO);
     }
-
-    
-    Specification<ChatUsage> spec = Specification
-            .where(userUUID != null ? ChatUsageSpecification.hasUserId(userUUID) : null)
-            .and(threadUUID != null ? ChatUsageSpecification.hasThreadId(threadUUID) : null);
-
-    
-    List<ChatUsage> chatUsages = chatUsageRepository.findAll(spec);
-
-    
-    return chatUsages.stream()
-                     .map(chatUsageMapper::toDTO)
-                     .collect(Collectors.toList());
-}
 
     @Override
     public Optional<ChatUsageDetailsDTO> findByRequestId(String requestId) {

@@ -1,7 +1,9 @@
 package com.intellidesk.cognitia.chat.service;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -47,6 +49,7 @@ public class ChatService {
     private final VectorStore vectorStore;
     private final ChatMemoryHydrator chatMemoryHydrator;
     private final ThreadLockService threadLockService;
+    private final ThreadTitleGenerationService titleGenerationService;
 
     @Transactional
     public ChatThreadDTO getThread(String threadId) {
@@ -334,7 +337,7 @@ public class ChatService {
 
                     AtomicReference<StringBuilder> buffer = new AtomicReference<>(new StringBuilder());
 
-                    // Call the LLM and stream response
+                    // Call the LLM and stream response with line-based buffering
                     return chatClient.prompt()
                             .advisors(a -> {
                                 a.param(ChatMemory.CONVERSATION_ID, ctx.threadId().toString());
@@ -345,13 +348,10 @@ public class ChatService {
                             .system(systemPrompt)
                             .user(fullPrompt)
                             .stream().content()
-                            .flatMap(chunk -> {
-                                buffer.get().append(chunk);
-                                log.info("[ChatService] Streaming chunk: {}", chunk);
-                                return Mono.just(
-                                        ServerSentEvent.builder(chunk).build()
-                                );
-                            })
+                            .doOnNext(chunk -> buffer.get().append(chunk))  // Accumulate for final save
+                            .transform(flux -> bufferByLineWithTimeout(flux, Duration.ofMillis(500), 500))
+                            .doOnNext(batch -> log.debug("[ChatService] Streaming batch: {}", batch))
+                            .map(batch -> ServerSentEvent.<String>builder(batch).build())
                             .doOnComplete(() -> {
                                 // Save final AI message
                                 ChatMessage aiMsg = ChatMessage.builder()
@@ -364,6 +364,12 @@ public class ChatService {
                         ctx.thread().addMessage(aiMsg);
                         threadRepository.save(ctx.thread());
                         log.info("[ChatService] Stream completed for thread {}", ctx.threadId());
+                        // Async title generation (non-blocking)
+                        titleGenerationService.generateTitleIfNeeded(
+                            ctx.thread(),
+                            ctx.userMessage(),
+                            buffer.get().toString()
+                        );
                     })
                     .doFinally(signalType -> {
                         // Always release lock when stream ends (success, error, or cancel)
@@ -380,6 +386,45 @@ public class ChatService {
             // Release lock on error during setup phase
             threadLockService.release(threadId, lockToken);
             log.error("[ChatService] Error in stream for thread {}: {}", threadId, e.getMessage());
+        });
+    }
+
+    /**
+     * Buffers streaming tokens and emits when:
+     * 1. A newline is detected (preserves markdown line structure)
+     * 2. Timeout is reached (prevents long waits on paragraphs)
+     * 3. Buffer size exceeds maxChars (memory safety)
+     */
+    private Flux<String> bufferByLineWithTimeout(Flux<String> source, Duration timeout, int maxChars) {
+        return Flux.create(sink -> {
+            StringBuilder lineBuffer = new StringBuilder();
+            AtomicLong lastEmit = new AtomicLong(System.currentTimeMillis());
+            
+            source.subscribe(
+                chunk -> {
+                    lineBuffer.append(chunk);
+                    long now = System.currentTimeMillis();
+                    boolean hasNewline = chunk.contains("\n");
+                    boolean timeoutReached = (now - lastEmit.get()) > timeout.toMillis();
+                    boolean sizeExceeded = lineBuffer.length() > maxChars;
+                    
+                    if (hasNewline || timeoutReached || sizeExceeded) {
+                        if (lineBuffer.length() > 0) {
+                            sink.next(lineBuffer.toString());
+                            lineBuffer.setLength(0);
+                            lastEmit.set(now);
+                        }
+                    }
+                },
+                sink::error,
+                () -> {
+                    // Emit remaining buffer on complete
+                    if (lineBuffer.length() > 0) {
+                        sink.next(lineBuffer.toString());
+                    }
+                    sink.complete();
+                }
+            );
         });
     }
 }
