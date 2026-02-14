@@ -1,5 +1,6 @@
 package com.intellidesk.cognitia.chat.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -79,9 +80,11 @@ public class ChatController {
         return ResponseEntity.ok().body(new ApiResponse<>("Thread fetched successfully", true, chatThread));
     }
 
+
     @Operation(summary = "Get all chat threads")
     @GetMapping("/threads")
     public ResponseEntity<ApiResponse<List<ChatThreadDTO>>> getAllThreads(){
+        log.info("[ChatController :: getAllThreads] Fetching all chat threads at time: {}",LocalDateTime.now());
         List<ChatThreadDTO> chatThreads = chatService.getAllThreads();
         ApiResponse<List<ChatThreadDTO>> apiResponse = new ApiResponse<>("Threads fetched successfully", true, chatThreads);
         return ResponseEntity.ok().body(apiResponse);

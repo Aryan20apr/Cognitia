@@ -83,7 +83,7 @@ spring:
           idempotence: ${KAFKA_IDEMPOTENCE:true}
 
 title-generation:
-  api-key : ${GROQ_API_KEY}
+  api-key : ${TITLE_GENERATION_API_KEY}
   model: ${TITLE_GENERATION_MODEL:llama-3.1-8b-instant}
 
 ingestion:

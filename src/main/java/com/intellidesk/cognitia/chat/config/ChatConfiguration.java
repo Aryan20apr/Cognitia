@@ -89,7 +89,7 @@ public class ChatConfiguration {
         OpenAiChatOptions options = OpenAiChatOptions.builder()
             .model(titleModel)
             .temperature(0.3)  // Lower temperature for consistent response like title generation cases
-            .maxTokens(50)     // Titles are short
+            .maxTokens(300)     // Titles are short
             .build();
 
         OpenAiChatModel chatModel = OpenAiChatModel.builder()

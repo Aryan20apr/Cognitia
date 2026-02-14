@@ -3,6 +3,8 @@ package com.intellidesk.cognitia.chat.service;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -336,6 +338,18 @@ public class ChatService {
                     """.formatted(ctx.context(), ctx.userMessage());
 
                     AtomicReference<StringBuilder> buffer = new AtomicReference<>(new StringBuilder());
+                    
+                    // Fire title generation early — runs in parallel with streaming.
+                    CompletableFuture<String> titleFuture = CompletableFuture.supplyAsync(() -> {
+                        try {
+                            return titleGenerationService.generateTitleBlocking(
+                                ctx.thread(), ctx.userMessage(), ""
+                            );
+                        } catch (Exception e) {
+                            log.warn("[ChatService] Title generation failed: {}", e.getMessage());
+                            return null;
+                        }
+                    });
 
                     // Call the LLM and stream response with line-based buffering
                     return chatClient.prompt()
@@ -364,18 +378,35 @@ public class ChatService {
                         ctx.thread().addMessage(aiMsg);
                         threadRepository.save(ctx.thread());
                         log.info("[ChatService] Stream completed for thread {}", ctx.threadId());
-                        // Async title generation (non-blocking)
-                        titleGenerationService.generateTitleIfNeeded(
-                            ctx.thread(),
-                            ctx.userMessage(),
-                            buffer.get().toString()
-                        );
                     })
                     .doFinally(signalType -> {
                         // Always release lock when stream ends (success, error, or cancel)
                         threadLockService.release(ctx.threadId(), ctx.lockToken());
                         log.info("[ChatService] Lock released for thread {} (signal: {})", ctx.threadId(), signalType);
                     })
+                    // Emit title as a named SSE event before [DONE]
+                    .concatWith(Mono.defer(() -> {
+                        try {
+                            // Wait up to 3 seconds for title (it ran in parallel, likely ready)
+                            String title = titleFuture.get(10, TimeUnit.SECONDS);
+                            if (title != null && !title.isEmpty()) {
+                                titleGenerationService.persistTitle(ctx.threadId(), title);
+                                log.info("[ChatService] Emitting title SSE for thread {}: {}", ctx.threadId(), title);
+                                return Mono.just(
+                                    ServerSentEvent.<String>builder(title)
+                                        .event("thread-title")
+                                        .build()
+                                );
+                            }
+                        } catch (Exception e) {
+                            // Title not ready or failed — fire async fallback with full response
+                            log.info("[ChatService] Title not ready in time for thread {}, falling back to async", ctx.threadId());
+                            titleGenerationService.generateTitleIfNeeded(
+                                ctx.thread(), ctx.userMessage(), buffer.get().toString()
+                            );
+                        }
+                        return Mono.empty();
+                    }))
                     .concatWith(
                             Mono.just(
                                     ServerSentEvent.<String>builder("[DONE]").build()
