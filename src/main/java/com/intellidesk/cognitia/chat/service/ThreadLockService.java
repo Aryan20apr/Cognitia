@@ -2,8 +2,10 @@ package com.intellidesk.cognitia.chat.service;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.List;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,15 @@ public class ThreadLockService {
     private static final String LOCK_KEY_FMT = "thread:lock:%s";
     private static final String QUEUE_KEY_FMT = "thread:queue:%s";
     private static final Duration LOCK_TTL = Duration.ofMinutes(5); // Max streaming duration
+    private static final RedisScript<Long> RELEASE_SCRIPT = RedisScript.of(
+        """
+        if redis.call('get', KEYS[1]) == ARGV[1] then
+            return redis.call('del', KEYS[1])
+        else
+            return 0
+        end
+        """
+        , Long.class);
 
     public ThreadLockService(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
@@ -60,12 +71,11 @@ public class ThreadLockService {
         
         String key = lockKey(threadId);
         try {
-            String currentToken = redisTemplate.opsForValue().get(key);
-            if (lockToken.equals(currentToken)) {
-                redisTemplate.delete(key);
+            Long result = redisTemplate.execute(RELEASE_SCRIPT,List.of(key),lockToken);
+            if (result != null && result == 1) {
                 log.info("[ThreadLock] Lock released for thread {}", threadId);
             } else {
-                log.warn("[ThreadLock] Cannot release lock for thread {} - token mismatch", threadId);
+                log.warn("[ThreadLock] Cannot release lock for thread {} - token mismatch or expired", threadId);
             }
         } catch (Exception e) {
             log.error("[ThreadLock] Error releasing lock for thread {}: {}", threadId, e.getMessage());
