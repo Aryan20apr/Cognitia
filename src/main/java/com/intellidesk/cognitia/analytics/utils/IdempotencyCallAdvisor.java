@@ -17,6 +17,7 @@ import com.intellidesk.cognitia.utils.exceptionHandling.DuplicateRequestInProgre
 
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.SignalType;
 
 @Component
 @Slf4j
@@ -39,39 +40,30 @@ public class IdempotencyCallAdvisor implements CallAdvisor, StreamAdvisor {
     }
 
     /**
-     * Common idempotency check logic - returns requestId if lock acquired, null if no requestId provided
+     * Common idempotency check logic - returns requestId if lock acquired, null if no requestId provided.
+     * Uses tryAcquire (SETNX) as the single atomic check — no redundant peek() before it.
      */
     private String acquireIdempotencyLock(ChatClientRequest request) {
         Object reqIdObj = request.context().get(Constants.PARAM_REQUEST_ID);
         String requestId = reqIdObj == null ? null : String.valueOf(reqIdObj);
 
         if (requestId == null || requestId.isBlank()) {
-            log.info("No requestId provided in context. Proceeding without idempotency check.");
+            log.debug("[Idempotency] No requestId provided. Proceeding without idempotency check.");
             return null;
         }
 
-        // Quick check in Redis
-        String state = idempotencyService.peek(requestId);
-        log.info("Idempotency check for requestId [{}]: Redis state [{}]", requestId, state);
-        
-        if (Objects.equals(state, "processed")) {
-            log.info("Request [{}] already processed.", requestId);
-            throw new DuplicateRequestAlreadyProcessedException(requestId);
-        }
-        if (Objects.equals(state, "processing")) {
-            log.info("Request [{}] is currently being processed.", requestId);
-            throw new DuplicateRequestInProgressException(requestId);
-        }
-
-        // Try to acquire processing lock
+        // Try to acquire processing lock atomically (SETNX)
         boolean acquired = idempotencyService.tryAcquire(requestId);
-        log.info("Lock acquisition for requestId [{}]: {}", requestId, acquired ? "ACQUIRED" : "FAILED");
-        
+        log.info("[Idempotency] Lock acquisition for requestId [{}]: {}", requestId, acquired ? "ACQUIRED" : "FAILED");
+
         if (!acquired) {
-            state = idempotencyService.peek(requestId);
+            // Lock not acquired — check why (already processed vs still processing)
+            String state = idempotencyService.peek(requestId);
             if (Objects.equals(state, "processed")) {
+                log.info("[Idempotency] Request [{}] already processed.", requestId);
                 throw new DuplicateRequestAlreadyProcessedException(requestId);
             } else {
+                log.info("[Idempotency] Request [{}] is currently being processed.", requestId);
                 throw new DuplicateRequestInProgressException(requestId);
             }
         }
@@ -89,7 +81,7 @@ public class IdempotencyCallAdvisor implements CallAdvisor, StreamAdvisor {
             // Mark as processed on success
             if (requestId != null) {
                 idempotencyService.markProcessed(requestId);
-                log.info("Request [{}] marked as processed.", requestId);
+                log.info("[Idempotency] Request [{}] marked as processed.", requestId);
             }
             
             return response;
@@ -97,7 +89,7 @@ public class IdempotencyCallAdvisor implements CallAdvisor, StreamAdvisor {
             // Release lock on error so request can be retried
             if (requestId != null) {
                 idempotencyService.release(requestId);
-                log.info("Lock released for requestId [{}] due to error.", requestId);
+                log.info("[Idempotency] Lock released for requestId [{}] due to error.", requestId);
             }
             throw e;
         }
@@ -108,16 +100,16 @@ public class IdempotencyCallAdvisor implements CallAdvisor, StreamAdvisor {
         String requestId = acquireIdempotencyLock(request);
 
         return chain.nextStream(request)
-            .doOnComplete(() -> {
-                if (requestId != null) {
+            .doFinally(signal -> {
+                if (requestId == null) return;
+                
+                if (signal == SignalType.ON_COMPLETE) {
                     idempotencyService.markProcessed(requestId);
-                    log.info("Stream request [{}] marked as processed.", requestId);
-                }
-            })
-            .doOnError(e -> {
-                if (requestId != null) {
+                    log.info("[Idempotency] Stream request [{}] marked as processed.", requestId);
+                } else {
+                    // ON_ERROR or CANCEL — release lock so the request can be retried
                     idempotencyService.release(requestId);
-                    log.info("Lock released for stream requestId [{}] due to error: {}", requestId, e.getMessage());
+                    log.info("[Idempotency] Lock released for stream requestId [{}] (signal: {})", requestId, signal);
                 }
             });
     }

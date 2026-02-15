@@ -185,7 +185,7 @@ public class ChatService {
                 .advisors(a -> {
                     a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
                     // Use thread.getUserId() if userId is not directly available
-                    a.param(Constants.PARAM_REQUEST_ID, requestId != null ? requestId : "1");
+                    a.param(Constants.PARAM_REQUEST_ID, requestId != null ? requestId : UUID.randomUUID().toString());
                     a.param(Constants.PARAM_USER_ID, resolvedUserId != null ? resolvedUserId : "");
                     a.param(Constants.PARAM_TENANT_ID, TenantContext.getTenantId().toString());
                 }) // Connect memory
@@ -355,7 +355,7 @@ public class ChatService {
                     return chatClient.prompt()
                             .advisors(a -> {
                                 a.param(ChatMemory.CONVERSATION_ID, ctx.threadId().toString());
-                                a.param("requestId", ctx.requestId() != null ? ctx.requestId() : "1");
+                                a.param("requestId", ctx.requestId() != null ? ctx.requestId() : UUID.randomUUID().toString());
                                 a.param("userId", ctx.userId() != null ? ctx.userId() : "");
                                 a.param("tenantId", TenantContext.getTenantId().toString());
                             })
