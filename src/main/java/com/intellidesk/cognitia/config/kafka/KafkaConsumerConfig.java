@@ -32,7 +32,7 @@ public class KafkaConsumerConfig {
     @Value("${analytics.usage-events.group.name}")
     private String analyticsUsageEventsGroupId;
 
-    @Bean
+
     public ConsumerFactory<String, IngestionJob> resourceConsumerFactory(String groupId){
        Map<String, Object> props = new HashMap<>();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
@@ -53,7 +53,7 @@ public class KafkaConsumerConfig {
         return factory;
     }
 
-    @Bean
+
     public ConsumerFactory<String, ChatUsageDetailsDTO> usageEventsConsumerFactory(){
        Map<String, Object> props = new HashMap<>();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);

@@ -18,7 +18,13 @@ public class IngestionConfig {
 
     @Bean
     public TextSplitter tokenTextSplitter(){
-        return new TokenTextSplitter(1000, 400, 10, 5000, true);
+        return TokenTextSplitter.builder()
+        .withChunkSize(1000)
+        .withMinChunkSizeChars(400)
+        .withMinChunkLengthToEmbed(10)
+        .withMaxNumChunks(5000)
+        .withKeepSeparator(true)
+        .build();
     }
 
     @Bean
