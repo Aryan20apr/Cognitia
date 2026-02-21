@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Component
 @Slf4j
-public class WebSearchTool {
+public class WebSearchTool implements TimelineAwareTool {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -98,6 +98,23 @@ public class WebSearchTool {
         } catch (Exception e) {
             log.error("Error calling Tavily Search API: {}", e.getMessage(), e);
             throw new RuntimeException("Error calling Tavily Search API: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public String timelineDescription() {
+        return "Searching the web";
+    }
+
+    @Override
+    public String summarizeResult(String rawJsonResult) {
+        if (rawJsonResult == null || rawJsonResult.isBlank()) return "No results";
+        try {
+            List<?> results = objectMapper.readValue(rawJsonResult, List.class);
+            int count = results.size();
+            return "Found " + count + " search result" + (count != 1 ? "s" : "");
+        } catch (Exception e) {
+            return "Search completed";
         }
     }
 }

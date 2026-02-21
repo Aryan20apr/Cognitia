@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Component
 @Slf4j
-public class WebExtractTool {
+public class WebExtractTool implements TimelineAwareTool{
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private WebClient webClient;
@@ -164,5 +164,23 @@ public class WebExtractTool {
             log.error("Failed to parse Tavily response: {}", e.getMessage());
             return ERROR_MESSAGE;
         }
+    }
+
+    @Override
+    public String timelineDescription() {
+        return "Reading web page";
+    }
+
+    @Override
+    public String summarizeResult(String rawJsonResult) {
+        if (rawJsonResult == null || rawJsonResult.isBlank()) return "No content extracted";
+        int count = 0;
+        int idx = 0;
+        while ((idx = rawJsonResult.indexOf("## Source:", idx)) != -1) {
+            count++;
+            idx += 10;
+        }
+        if (count == 0) count = 1;
+        return "Extracted content from " + count + " page" + (count != 1 ? "s" : "");
     }
 }
