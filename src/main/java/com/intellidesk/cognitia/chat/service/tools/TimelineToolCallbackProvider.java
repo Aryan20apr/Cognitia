@@ -26,38 +26,42 @@ public class TimelineToolCallbackProvider {
     private final ObjectMapper objectMapper;
 
     private static final Map<String, String> TOOL_DESCRIPTIONS = Map.of(
-        "searchWeb", "Searching the web",
-        "extractText", "Reading web page",
-        "getCurrentDateTime", "Checking current time"
-    );
+            "searchWeb", "Searching the web",
+            "extractText", "Reading web page",
+            "getCurrentDateTime", "Checking current time");
 
     /**
      * Creates per-request augmented tool callbacks that capture the given timeline
-     * context directly in their closures. 
+     * context directly in their closures.
      */
     public ToolCallback[] createAugmentedToolCallbacks(AgentTimelineContext timeline, Object... toolObjects) {
         List<ToolCallback> allCallbacks = new ArrayList<>();
 
         for (Object toolObject : toolObjects) {
-            AugmentedToolCallbackProvider<AgentThinking> augmented =
-                AugmentedToolCallbackProvider.<AgentThinking>builder()
+            AugmentedToolCallbackProvider<AgentThinking> augmented = AugmentedToolCallbackProvider
+                    .<AgentThinking>builder()
                     .toolObject(toolObject)
                     .argumentType(AgentThinking.class)
                     .argumentConsumer(event -> {
-                        if (timeline == null) return;
+                        if (timeline == null)
+                            return;
 
                         String toolName = event.toolDefinition().name();
                         AgentThinking thinking = event.arguments();
-
+                        log.info(
+                                "[TimelineToolCallbackProvider] [createAugmentedToolCallback] AugmentedArgumentEvent arguments for tool: {} :: {}",
+                                toolName, thinking);
+                        log.info(
+                                "[TimelineToolCallbackProvider] [createAugmentedToolCallback] AugmentedArgumentEvent input for tool: {} :: {}",
+                                toolName, event.rawInput());
                         Map<String, Object> args = parseArgs(event.rawInput());
 
                         timeline.emitStep(AgentStep.toolStart(
-                            toolName,
-                            TOOL_DESCRIPTIONS.getOrDefault(toolName, "Using " + toolName + "..."),
-                            args,
-                            thinking != null ? thinking.innerThought() : null,
-                            thinking != null ? thinking.confidence() : null
-                        ));
+                                toolName,
+                                TOOL_DESCRIPTIONS.getOrDefault(toolName, "Using " + toolName + "..."),
+                                args,
+                                thinking != null ? thinking.innerThought() : null,
+                                thinking != null ? thinking.confidence() : null));
                     })
                     .removeExtraArgumentsAfterProcessing(true)
                     .build();
@@ -73,7 +77,8 @@ public class TimelineToolCallbackProvider {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> parseArgs(String rawInput) {
-        if (rawInput == null || rawInput.isBlank()) return Map.of();
+        if (rawInput == null || rawInput.isBlank())
+            return Map.of();
         try {
             return objectMapper.readValue(rawInput, Map.class);
         } catch (Exception e) {
@@ -112,10 +117,9 @@ public class TimelineToolCallbackProvider {
 
                 if (timeline != null) {
                     timeline.emitStep(AgentStep.toolResult(
-                        toolName,
-                        summarizeResult(toolName, result),
-                        duration
-                    ));
+                            toolName,
+                            summarizeResult(toolName, result),
+                            duration));
                 }
                 return result;
             } catch (Exception e) {
@@ -123,7 +127,7 @@ public class TimelineToolCallbackProvider {
 
                 if (timeline != null) {
                     timeline.emitStep(AgentStep.error(toolName,
-                        "Failed after " + duration + "ms: " + e.getMessage()));
+                            "Failed after " + duration + "ms: " + e.getMessage()));
                 }
                 throw e;
             }
@@ -135,8 +139,10 @@ public class TimelineToolCallbackProvider {
         }
 
         private String summarizeResult(String toolName, String result) {
-            if (result == null) return "No result";
-
+            if (result == null)
+                return "No result";
+            log.info("[TimelineToolCallbackProvider] [summarizeResult] Result of tool call for {} is {}", toolName,
+                    result);
             return switch (toolName) {
                 case "searchWeb" -> {
                     int count = countOccurrences(result, "\"url\"");
@@ -162,7 +168,8 @@ public class TimelineToolCallbackProvider {
         }
 
         private String truncate(String text, int maxLen) {
-            if (text.length() <= maxLen) return text;
+            if (text.length() <= maxLen)
+                return text;
             return text.substring(0, maxLen) + "...";
         }
     }
