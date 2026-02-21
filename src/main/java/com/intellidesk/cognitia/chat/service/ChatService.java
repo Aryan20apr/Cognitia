@@ -32,10 +32,7 @@ import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.repository.ChatMessageRepository;
 import com.intellidesk.cognitia.chat.repository.ChatThreadRepository;
 import com.intellidesk.cognitia.chat.service.ThreadLockService.ThreadLockStatus;
-import com.intellidesk.cognitia.chat.service.tools.DateTimeTool;
 import com.intellidesk.cognitia.chat.service.tools.TimelineToolCallbackProvider;
-import com.intellidesk.cognitia.chat.service.tools.WebExtractTool;
-import com.intellidesk.cognitia.chat.service.tools.WebSearchTool;
 import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
@@ -60,9 +57,6 @@ public class ChatService {
     private final ThreadLockService threadLockService;
     private final ThreadTitleGenerationService titleGenerationService;
     private final TimelineToolCallbackProvider timelineToolCallbackProvider;
-    private final WebSearchTool webSearchTool;
-    private final DateTimeTool dateTimeTool;
-    private final WebExtractTool webExtractTool;
 
     @Transactional
     public ChatThreadDTO getThread(String threadId) {
@@ -196,7 +190,7 @@ public class ChatService {
                 })
                 .system(systemPrompt)
                 .user(fullPrompt)
-                .tools(webSearchTool, dateTimeTool, webExtractTool)
+                .toolCallbacks(timelineToolCallbackProvider.createAugmentedToolCallbacks(null))
                 .call()
                 .entity(CustomChatResponse.class);
 
@@ -313,7 +307,7 @@ public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
         timeline.emitStep(AgentStep.thinking("Analyzing your question..."));
 
             ToolCallback[] requestTools = timelineToolCallbackProvider
-                .createAugmentedToolCallbacks(timeline, webSearchTool, dateTimeTool, webExtractTool);
+                .createAugmentedToolCallbacks(timeline);
 
         String systemPrompt = """
                 You are a helpful AI assistant. Use both the provided context and prior chat memory

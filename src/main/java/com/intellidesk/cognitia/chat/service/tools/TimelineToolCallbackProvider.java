@@ -1,6 +1,7 @@
 package com.intellidesk.cognitia.chat.service.tools;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,26 +16,39 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellidesk.cognitia.chat.models.dtos.AgentStep;
 import com.intellidesk.cognitia.chat.service.AgentTimelineContext;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
 @Slf4j
-@RequiredArgsConstructor
 public class TimelineToolCallbackProvider {
 
     private final ObjectMapper objectMapper;
+    private final List<Object> allTools;
+    private final Map<String, TimelineAwareTool> toolIndex;
 
-    private static final Map<String, String> TOOL_DESCRIPTIONS = Map.of(
-        "searchWeb", "Searching the web",
-        "extractText", "Reading web page",
-        "getCurrentDateTime", "Checking current time"
-    );
+    public TimelineToolCallbackProvider(ObjectMapper objectMapper, List<TimelineAwareTool> timelineAwareTools) {
+        this.objectMapper = objectMapper;
+        this.allTools = new ArrayList<>(timelineAwareTools);
+        this.toolIndex = buildToolIndex(timelineAwareTools);
+        log.info("TimelineToolCallbackProvider initialized with {} tools: {}", toolIndex.size(), toolIndex.keySet());
+    }
 
-    /**
-     * Creates per-request augmented tool callbacks that capture the given timeline
-     * context directly in their closures. 
-     */
+    private Map<String, TimelineAwareTool> buildToolIndex(List<TimelineAwareTool> tools) {
+        Map<String, TimelineAwareTool> index = new HashMap<>();
+        for (TimelineAwareTool tool : tools) {
+            ToolCallback[] cbs = new AugmentedToolCallbackProvider<>(tool, AgentThinking.class, e -> {}, true)
+                    .getToolCallbacks();
+            for (ToolCallback cb : cbs) {
+                index.put(cb.getToolDefinition().name(), tool);
+            }
+        }
+        return index;
+    }
+
+    public ToolCallback[] createAugmentedToolCallbacks(AgentTimelineContext timeline) {
+        return createAugmentedToolCallbacks(timeline, allTools.toArray());
+    }
+
     public ToolCallback[] createAugmentedToolCallbacks(AgentTimelineContext timeline, Object... toolObjects) {
         List<ToolCallback> allCallbacks = new ArrayList<>();
 
@@ -51,9 +65,14 @@ public class TimelineToolCallbackProvider {
 
                         Map<String, Object> args = parseArgs(event.rawInput());
 
+                        TimelineAwareTool aware = toolIndex.get(toolName);
+                        String description = (aware != null && aware.timelineDescription() != null)
+                                ? aware.timelineDescription()
+                                : "Using " + toolName + "...";
+
                         timeline.emitStep(AgentStep.toolStart(
                             toolName,
-                            TOOL_DESCRIPTIONS.getOrDefault(toolName, "Using " + toolName + "..."),
+                            description,
                             args,
                             thinking != null ? thinking.innerThought() : null,
                             thinking != null ? thinking.confidence() : null
@@ -64,7 +83,7 @@ public class TimelineToolCallbackProvider {
 
             ToolCallback[] callbacks = augmented.getToolCallbacks();
             for (ToolCallback cb : callbacks) {
-                allCallbacks.add(new TimedToolCallback(cb, timeline));
+                allCallbacks.add(new TimedToolCallback(cb, timeline, toolIndex));
             }
         }
 
@@ -85,10 +104,12 @@ public class TimelineToolCallbackProvider {
 
         private final ToolCallback delegate;
         private final AgentTimelineContext timeline;
+        private final Map<String, TimelineAwareTool> toolIndex;
 
-        TimedToolCallback(ToolCallback delegate, AgentTimelineContext timeline) {
+        TimedToolCallback(ToolCallback delegate, AgentTimelineContext timeline, Map<String, TimelineAwareTool> toolIndex) {
             this.delegate = delegate;
             this.timeline = timeline;
+            this.toolIndex = toolIndex;
         }
 
         @Override
@@ -137,28 +158,13 @@ public class TimelineToolCallbackProvider {
         private String summarizeResult(String toolName, String result) {
             if (result == null) return "No result";
 
-            return switch (toolName) {
-                case "searchWeb" -> {
-                    int count = countOccurrences(result, "\"url\"");
-                    yield "Found " + count + " search result" + (count != 1 ? "s" : "");
-                }
-                case "extractText" -> {
-                    int sources = countOccurrences(result, "## Source:");
-                    yield "Extracted content from " + sources + " page" + (sources != 1 ? "s" : "");
-                }
-                case "getCurrentDateTime" -> "Got current time: " + truncate(result, 30);
-                default -> truncate(result, 80);
-            };
-        }
-
-        private int countOccurrences(String text, String pattern) {
-            int count = 0;
-            int idx = 0;
-            while ((idx = text.indexOf(pattern, idx)) != -1) {
-                count++;
-                idx += pattern.length();
+            TimelineAwareTool aware = toolIndex.get(toolName);
+            if (aware != null) {
+                String summary = aware.summarizeResult(result);
+                if (summary != null) return summary;
             }
-            return Math.max(count, 1);
+
+            return truncate(result, 80);
         }
 
         private String truncate(String text, int maxLen) {
