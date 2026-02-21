@@ -12,6 +12,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +23,7 @@ import com.intellidesk.cognitia.analytics.utils.IdempotencyCallAdvisor;
 import com.intellidesk.cognitia.analytics.utils.QuotaEnforcementAdvisor;
 import com.intellidesk.cognitia.analytics.utils.TokenAnalyticsAdvisorV2;
 import com.intellidesk.cognitia.chat.service.tools.DateTimeTool;
+import com.intellidesk.cognitia.chat.service.tools.TimelineToolCallbackProvider;
 import com.intellidesk.cognitia.chat.service.tools.WebExtractTool;
 import com.intellidesk.cognitia.chat.service.tools.WebSearchTool;
 
@@ -37,6 +39,7 @@ public class ChatConfiguration {
     private final WebSearchTool webSearchTool;
     private final DateTimeTool dateTimeTool;
     private final WebExtractTool webExtractTool;
+    private final TimelineToolCallbackProvider timelineToolCallbackProvider;
 
     @Value("${title-generation.api-key}")
     private String apiKey;
@@ -72,9 +75,13 @@ public class ChatConfiguration {
     @Bean
     @Primary
     public ChatClient geminiChatClient(ChatModel chatModel,  IdempotencyCallAdvisor idempotencyCallAdvisor, QuotaEnforcementAdvisor quotaEnforcementAdvisor, MessageChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsAdvisorV2 tokenAnalyticsCallAdvisor) {
+        
+        ToolCallback[] augmentedTools = timelineToolCallbackProvider
+            .createAugmentedToolCallbacks(webSearchTool, dateTimeTool, webExtractTool);
         return ChatClient.builder(chatModel)
             .defaultAdvisors(List.of(idempotencyCallAdvisor,quotaEnforcementAdvisor, chatMemoryAdvisor,tokenAnalyticsCallAdvisor, new SimpleLoggerAdvisor()))
-            .defaultTools(webSearchTool, dateTimeTool, webExtractTool)
+            // .defaultTools(webSearchTool, dateTimeTool, webExtractTool)
+            .defaultToolCallbacks(augmentedTools)
             .build();
         // return ChatClient.builder(chatModel).defaultAdvisors(List.of(new SimpleLoggerAdvisor())).build();
     }
