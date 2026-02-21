@@ -24,18 +24,18 @@ import lombok.extern.slf4j.Slf4j;
 public class TimelineToolCallbackProvider {
 
     private final ObjectMapper objectMapper;
+
     private static final Map<String, String> TOOL_DESCRIPTIONS = Map.of(
         "searchWeb", "Searching the web",
         "extractText", "Reading web page",
         "getCurrentDateTime", "Checking current time"
     );
 
-     /**
-     * Wraps multiple tool objects with augmentation (LLM reasoning capture)
-     * and timing (execution duration + result summary).
-     * Returns an array of ToolCallbacks ready for ChatClient.defaultToolCallbacks().
+    /**
+     * Creates per-request augmented tool callbacks that capture the given timeline
+     * context directly in their closures. 
      */
-     public ToolCallback[] createAugmentedToolCallbacks(Object... toolObjects) {
+    public ToolCallback[] createAugmentedToolCallbacks(AgentTimelineContext timeline, Object... toolObjects) {
         List<ToolCallback> allCallbacks = new ArrayList<>();
 
         for (Object toolObject : toolObjects) {
@@ -44,7 +44,6 @@ public class TimelineToolCallbackProvider {
                     .toolObject(toolObject)
                     .argumentType(AgentThinking.class)
                     .argumentConsumer(event -> {
-                        AgentTimelineContext timeline = AgentTimelineContext.current();
                         if (timeline == null) return;
 
                         String toolName = event.toolDefinition().name();
@@ -65,7 +64,7 @@ public class TimelineToolCallbackProvider {
 
             ToolCallback[] callbacks = augmented.getToolCallbacks();
             for (ToolCallback cb : callbacks) {
-                allCallbacks.add(new TimedToolCallback(cb));
+                allCallbacks.add(new TimedToolCallback(cb, timeline));
             }
         }
 
@@ -76,22 +75,20 @@ public class TimelineToolCallbackProvider {
     private Map<String, Object> parseArgs(String rawInput) {
         if (rawInput == null || rawInput.isBlank()) return Map.of();
         try {
-           
             return objectMapper.readValue(rawInput, Map.class);
         } catch (Exception e) {
             return Map.of("raw", rawInput);
         }
     }
 
-    /**
-     * Inner wrapper that measures tool execution time and emits tool-result events.
-     */
     static class TimedToolCallback implements ToolCallback {
 
         private final ToolCallback delegate;
+        private final AgentTimelineContext timeline;
 
-        TimedToolCallback(ToolCallback delegate) {
+        TimedToolCallback(ToolCallback delegate, AgentTimelineContext timeline) {
             this.delegate = delegate;
+            this.timeline = timeline;
         }
 
         @Override
@@ -113,7 +110,6 @@ public class TimelineToolCallbackProvider {
                 String result = delegate.call(toolInput);
                 long duration = System.currentTimeMillis() - start;
 
-                AgentTimelineContext timeline = AgentTimelineContext.current();
                 if (timeline != null) {
                     timeline.emitStep(AgentStep.toolResult(
                         toolName,
@@ -125,7 +121,6 @@ public class TimelineToolCallbackProvider {
             } catch (Exception e) {
                 long duration = System.currentTimeMillis() - start;
 
-                AgentTimelineContext timeline = AgentTimelineContext.current();
                 if (timeline != null) {
                     timeline.emitStep(AgentStep.error(toolName,
                         "Failed after " + duration + "ms: " + e.getMessage()));

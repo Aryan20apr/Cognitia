@@ -14,6 +14,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.http.codec.ServerSentEvent;
@@ -31,6 +32,10 @@ import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.repository.ChatMessageRepository;
 import com.intellidesk.cognitia.chat.repository.ChatThreadRepository;
 import com.intellidesk.cognitia.chat.service.ThreadLockService.ThreadLockStatus;
+import com.intellidesk.cognitia.chat.service.tools.DateTimeTool;
+import com.intellidesk.cognitia.chat.service.tools.TimelineToolCallbackProvider;
+import com.intellidesk.cognitia.chat.service.tools.WebExtractTool;
+import com.intellidesk.cognitia.chat.service.tools.WebSearchTool;
 import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
@@ -54,6 +59,10 @@ public class ChatService {
     private final ChatMemoryHydrator chatMemoryHydrator;
     private final ThreadLockService threadLockService;
     private final ThreadTitleGenerationService titleGenerationService;
+    private final TimelineToolCallbackProvider timelineToolCallbackProvider;
+    private final WebSearchTool webSearchTool;
+    private final DateTimeTool dateTimeTool;
+    private final WebExtractTool webExtractTool;
 
     @Transactional
     public ChatThreadDTO getThread(String threadId) {
@@ -119,7 +128,6 @@ public class ChatService {
 
         final UUID threadId = UUID.fromString(message.getThreadId());
 
-        // Try to acquire thread lock
         String lockToken = threadLockService.tryAcquire(threadId);
         if (lockToken == null) {
             ThreadLockStatus status = threadLockService.getStatus(threadId);
@@ -128,7 +136,6 @@ public class ChatService {
 
         try {
             String requestId = message.getRequestId();
-            // Get current authenticated user ID
             String userId = extractUserIdFromSecurityContext();
             final String resolvedUserId = userId;
             ChatThread thread = threadRepository.findById(threadId)
@@ -142,7 +149,6 @@ public class ChatService {
                 .map(Document::getFormattedContent)
                 .reduce("", (a, b) -> a + "\n" + b);
 
-        // 2️⃣ Persist user message
         ChatMessage userMsg = ChatMessage.builder()
                 .thread(thread)
                 .sender(MessageType.USER)
@@ -152,7 +158,6 @@ public class ChatService {
 
         thread.addMessage(userMsg);
 
-        // String history = simpleChatMemoryService.loadMemoryForThread(threadId);
         chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
 
         String systemPrompt = """
@@ -182,21 +187,19 @@ public class ChatService {
                 %s
                 """.formatted(context, userMessage);
 
-        // 5️⃣ Call the LLM
         CustomChatResponse customChatResponse = chatClient.prompt()
                 .advisors(a -> {
                     a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
-                    // Use thread.getUserId() if userId is not directly available
                     a.param(Constants.PARAM_REQUEST_ID, requestId != null ? requestId : UUID.randomUUID().toString());
                     a.param(Constants.PARAM_USER_ID, resolvedUserId != null ? resolvedUserId : "");
                     a.param(Constants.PARAM_TENANT_ID, TenantContext.getTenantId().toString());
-                }) // Connect memory
+                })
                 .system(systemPrompt)
                 .user(fullPrompt)
+                .tools(webSearchTool, dateTimeTool, webExtractTool)
                 .call()
                 .entity(CustomChatResponse.class);
 
-        // 5️⃣ Save AI response
         String answer = customChatResponse != null ? customChatResponse.getAnswer() : "";
         ChatMessage aiMsg = ChatMessage.builder()
                 .thread(thread)
@@ -210,7 +213,6 @@ public class ChatService {
 
             return customChatResponse;
         } finally {
-            // Always release the lock
             threadLockService.release(threadId, lockToken);
         }
     }
@@ -235,7 +237,6 @@ public class ChatService {
                 userId = userDetails.getUser().getId().toString();
             }
         } catch (Exception e) {
-            // Log warning but continue without userId
             log.warn("Could not extract userId from SecurityContext: {}", e.getMessage());
         }
         return userId;
@@ -307,11 +308,12 @@ public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
         return new StreamContext(thread, context, userMessage, requestId, userId, threadId, lockToken);
     })
     .flatMapMany(ctx -> {
-        // --- Initialize the timeline context ---
         AgentTimelineContext timeline = new AgentTimelineContext();
-        AgentTimelineContext.CURRENT.set(timeline);
 
         timeline.emitStep(AgentStep.thinking("Analyzing your question..."));
+
+            ToolCallback[] requestTools = timelineToolCallbackProvider
+                .createAugmentedToolCallbacks(timeline, webSearchTool, dateTimeTool, webExtractTool);
 
         String systemPrompt = """
                 You are a helpful AI assistant. Use both the provided context and prior chat memory
@@ -359,7 +361,6 @@ public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
             }
         });
 
-        // --- Content stream from LLM ---
         Flux<ServerSentEvent<String>> contentStream = chatClient.prompt()
                 .advisors(a -> {
                     a.param(ChatMemory.CONVERSATION_ID, ctx.threadId().toString());
@@ -369,6 +370,7 @@ public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
                 })
                 .system(systemPrompt)
                 .user(fullPrompt)
+                    .toolCallbacks(requestTools)
                 .stream().content()
                 .doOnNext(chunk -> {
                     buffer.get().append(chunk);
@@ -394,12 +396,10 @@ public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
                     timeline.complete();
                 })
                 .doFinally(signalType -> {
-                    AgentTimelineContext.CURRENT.remove();
                     threadLockService.release(ctx.threadId(), ctx.lockToken());
                     log.info("[ChatService] Lock released for thread {} (signal: {})", ctx.threadId(), signalType);
                 });
 
-        // --- Merge timeline events with content stream ---
         return Flux.merge(timeline.steps(), contentStream)
                 .concatWith(Mono.defer(() -> {
                     try {
@@ -428,7 +428,6 @@ public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
                 );
     })
     .doOnError(e -> {
-        AgentTimelineContext.cleanup();
         threadLockService.release(threadId, lockToken);
         log.error("[ChatService] Error in stream for thread {}: {}", threadId, e.getMessage());
     });

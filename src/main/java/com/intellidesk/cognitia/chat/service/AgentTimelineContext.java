@@ -13,13 +13,9 @@ import reactor.core.publisher.Sinks;
 
 @Slf4j
 public class AgentTimelineContext {
-    
-    public static final ThreadLocal<AgentTimelineContext> CURRENT = new ThreadLocal<>();
 
     private final Sinks.Many<ServerSentEvent<String>> sink;
     private final ObjectMapper objectMapper;
-
-
 
     public AgentTimelineContext() {
         this.sink = Sinks.many().multicast().onBackpressureBuffer();
@@ -27,8 +23,8 @@ public class AgentTimelineContext {
         this.objectMapper.registerModule(new JavaTimeModule());
     }
 
-    public void emitStep(AgentStep step){
-        try{
+    public void emitStep(AgentStep step) {
+        try {
             String json = objectMapper.writeValueAsString(step);
             Sinks.EmitResult result = sink.tryEmitNext(
                 ServerSentEvent.<String>builder(json)
@@ -52,21 +48,5 @@ public class AgentTimelineContext {
 
     public void complete() {
         sink.tryEmitComplete();
-    }
-
-    public static void init() {
-        CURRENT.set(new AgentTimelineContext());
-    }
-
-    public static void cleanup() {
-        AgentTimelineContext ctx = CURRENT.get();
-        if (ctx != null) {
-            ctx.complete();
-        }
-        CURRENT.remove();
-    }
-
-    public static AgentTimelineContext current() {
-        return CURRENT.get();
     }
 }
