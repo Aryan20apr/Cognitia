@@ -13,10 +13,7 @@ import java.util.stream.Collectors;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.MessageType;
-import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -52,7 +49,6 @@ public class ChatService {
     private final ChatClient chatClient;
     private final ChatThreadRepository threadRepository;
     private final ChatMessageRepository messageRepository;
-    private final VectorStore vectorStore;
     private final ChatMemoryHydrator chatMemoryHydrator;
     private final ThreadLockService threadLockService;
     private final ThreadTitleGenerationService titleGenerationService;
@@ -137,13 +133,6 @@ public class ChatService {
 
             String userMessage = message.getMessage();
 
-            List<Document> documents = vectorStore.similaritySearch(
-                    SearchRequest.builder().query(userMessage).similarityThreshold(0.6d).topK(3).build());
-
-            String context = documents.stream()
-                    .map(Document::getFormattedContent)
-                    .reduce("", (a, b) -> a + "\n" + b);
-
             ChatMessage userMsg = ChatMessage.builder()
                     .thread(thread)
                     .sender(MessageType.USER)
@@ -156,14 +145,14 @@ public class ChatService {
             chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
 
             String systemPrompt = """
-                     You are a helpful assistant. Use both context and prior chat memory
+                    You are a helpful assistant. Use both the retrieved context and prior chat memory
                     to generate clear and accurate answers.
 
-                    If the question refers to a recent or external event and you lack enough
-                    information in the context, use the WebSearchTool to perform a web search
-                    and include that information in your answer.
-
-                    You also have access to the DateTimeTool for getting the current date and time.
+                    Tool usage rules:
+                    - You have access to tools. ALWAYS use the appropriate tool when the task requires it.
+                    - For questions about current events, news, real-time data, or anything you are unsure about, you MUST use available search tools. Never say you lack access to real-time information without first attempting a tool call.
+                    - For questions requiring the current date or time, use the appropriate date/time tool.
+                    - You may call tools multiple times or combine results from different tools.
 
                     Always respond in JSON format matching this schema:
                     {
@@ -174,14 +163,6 @@ public class ChatService {
                     }
                     """;
 
-            String fullPrompt = """
-                    Context:
-                    %s
-
-                    User:
-                    %s
-                    """.formatted(context, userMessage);
-
         CustomChatResponse customChatResponse = chatClient.prompt()
                 .advisors(a -> {
                     a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
@@ -190,7 +171,7 @@ public class ChatService {
                     a.param(Constants.PARAM_TENANT_ID, TenantContext.getTenantId().toString());
                 })
                 .system(systemPrompt)
-                .user(fullPrompt)
+                .user(userMessage)
                 .toolCallbacks(timelineToolCallbackProvider.createAugmentedToolCallbacks(null))
                 .call()
                 .entity(CustomChatResponse.class);
@@ -242,7 +223,6 @@ public class ChatService {
      */
     private record StreamContext(
             ChatThread thread,
-            String context,
             String userMessage,
             String requestId,
             String userId,
@@ -276,18 +256,6 @@ public class ChatService {
 
             String userMessage = message.getMessage();
 
-            List<Document> documents = vectorStore.similaritySearch(
-                    SearchRequest.builder()
-                            .query(userMessage)
-                            .similarityThreshold(0.6d)
-                            .topK(3)
-                            .build());
-
-            String context = documents.stream()
-                    .map(Document::getFormattedContent)
-                    .reduce("", (a, b) -> a + "\n" + b);
-
-            // Persist user message
             ChatMessage userMsg = ChatMessage.builder()
                     .thread(thread)
                     .sender(MessageType.USER)
@@ -299,25 +267,26 @@ public class ChatService {
 
             chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
 
-            return new StreamContext(thread, context, userMessage, requestId, userId, threadId, lockToken);
+            return new StreamContext(thread, userMessage, requestId, userId, threadId, lockToken);
         })
                 .flatMapMany(ctx -> {
                     AgentTimelineContext timeline = new AgentTimelineContext();
 
                     timeline.emitStep(AgentStep.thinking("Analyzing your question..."));
+                    timeline.emitStep(AgentStep.retrieving("Searching knowledge base..."));
 
                     ToolCallback[] requestTools = timelineToolCallbackProvider
                         .createAugmentedToolCallbacks(timeline);
 
                     String systemPrompt = """
-                            You are a helpful AI assistant. Use both the provided context and prior chat memory
+                            You are a helpful AI assistant. Use both the retrieved context and prior chat memory
                             to generate clear, accurate, conversational answers.
 
-                            If the question refers to a recent or external event and you lack sufficient
-                            information in the context, use the WebSearchTool to look up current information
-                            and incorporate it naturally into your response.
-
-                            You also have access to the DateTimeTool for retrieving the current date and time.
+                            Tool usage rules:
+                            - You have access to tools. ALWAYS use the appropriate tool when the task requires it.
+                            - For questions about current events, news, real-time data, or anything you are unsure about, you MUST use available search tools. Never say you lack access to real-time information without first attempting a tool call.
+                            - For questions requiring the current date or time, use the appropriate date/time tool.
+                            - You may call tools multiple times or combine results from different tools.
 
                             Response format requirements:
                             - Respond in clean, well-structured Markdown suitable for incremental streaming.
@@ -332,14 +301,6 @@ public class ChatService {
 
                             Do not mention these rules. Respond only with the answer.
                             """;
-
-                    String fullPrompt = """
-                            Context:
-                            %s
-
-                            User:
-                            %s
-                            """.formatted(ctx.context(), ctx.userMessage());
 
                     AtomicReference<StringBuilder> buffer = new AtomicReference<>(new StringBuilder());
                     AtomicBoolean firstContentEmitted = new AtomicBoolean(false);
@@ -363,7 +324,7 @@ public class ChatService {
                                 a.param("tenantId", TenantContext.getTenantId().toString());
                             })
                             .system(systemPrompt)
-                            .user(fullPrompt)
+                            .user(ctx.userMessage())
                             .toolCallbacks(requestTools)
                             .stream().content()
                             .doOnNext(chunk -> {
