@@ -34,6 +34,10 @@ public record AgentStep(
         return new AgentStep("tool-result", tool, message, null, null, null, resultSummary, durationMs, Instant.now());
     }
 
+    public static AgentStep retrieving(String message) {
+        return new AgentStep("retrieving", null, message, null, null, null, null, null, Instant.now());
+    }
+
     public static AgentStep generating(String message) {
         return new AgentStep("generating", null, message, null, null, null, null, null, Instant.now());
     }
