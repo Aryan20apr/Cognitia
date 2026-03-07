@@ -82,7 +82,7 @@ public class WebSearchTool implements TimelineAwareTool {
                 log.error(
                         "Tavily WebSearch - Tavily returned null response for params: query={}, maxResults={}, topic={}",
                         query, maxResults, topic);
-                throw new RuntimeException("Tavily returned null response");
+                return List.of();
             }
             // Parse JSON
             TavilyResponse resp = objectMapper.readValue(rawResponse, TavilyResponse.class);
@@ -97,7 +97,7 @@ public class WebSearchTool implements TimelineAwareTool {
             return resp.getResults();
         } catch (Exception e) {
             log.error("Error calling Tavily Search API: {}", e.getMessage(), e);
-            throw new RuntimeException("Error calling Tavily Search API: " + e.getMessage(), e);
+            return List.of();
         }
     }
 

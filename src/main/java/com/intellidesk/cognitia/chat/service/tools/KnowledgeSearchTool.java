@@ -68,13 +68,14 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
             builder.filterExpression(filterExpression);
         }
 
-        List<Document> documents = vectorStore.similaritySearch(builder.build());
-
-        log.info("KnowledgeSearch - found {} documents for query='{}'", documents.size(), query);
-
-        return documents.stream()
-                .map(this::toKnowledgeResult)
-                .collect(Collectors.toList());
+        try {
+            List<Document> documents = vectorStore.similaritySearch(builder.build());
+            log.info("KnowledgeSearch - found {} documents for query='{}'", documents.size(), query);
+            return documents.stream().map(this::toKnowledgeResult).collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("KnowledgeSearch failed for query='{}': {}", query, e.getMessage(), e);
+            return List.of();
+        }
     }
 
     private String buildFilterExpression(String sourceFormat) {

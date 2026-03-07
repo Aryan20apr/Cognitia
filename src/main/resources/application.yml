@@ -3,6 +3,11 @@ spring:
         name: cognitia
     profiles:
         active: dev
+cognitia:
+  chat:
+    stream:
+      timeout-seconds: 180
+
 springdoc:
   api-docs:
     path: /v3/api-docs

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,13 +15,13 @@ import com.intellidesk.cognitia.chat.models.entities.ChatMessage;
 import com.intellidesk.cognitia.chat.models.entities.StoredMessage;
 import com.intellidesk.cognitia.chat.repository.ChatMessageRepository;
 
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Hydrates Redis-backed ChatMemory with last N messages from DB if needed.
  */
 @Service
+@Slf4j
 public class ChatMemoryHydrator {
 
     private final RedisTemplate<String, StoredMessage> redisTemplate;
@@ -42,18 +44,17 @@ public class ChatMemoryHydrator {
      */
     @Transactional(readOnly = true)
     public void hydrateIfEmpty(String conversationId) {
-        String key = memoryKeyPrefix + conversationId;
+        try {
+            String key = memoryKeyPrefix + conversationId;
 
         Boolean exists = redisTemplate.hasKey(key);
         if (Boolean.TRUE.equals(exists)) {
-            // memory exists — optionally check how many turns stored and hydrate if below threshold
             Long size = redisTemplate.opsForList().size(key);
-            if (size != null && size >= Math.min(maxTurns, 3)) { // small threshold to avoid rehydration too often
+            if (size != null && size >= Math.min(maxTurns, 3)) {
                 return;
             }
         }
 
-        // fetch last maxTurns messages (most recent first) and reverse to chronological order
         List<ChatMessage> last = messageRepo.findTopNByThreadIdOrderByCreatedAtDesc(UUID.fromString(conversationId), maxTurns)
                 .stream()
                 .sorted(Comparator.comparing(ChatMessage::getCreatedAt))
@@ -61,17 +62,7 @@ public class ChatMemoryHydrator {
 
         if (last.isEmpty()) return;
 
-        // Build a small in-memory ChatMemory and then push to Redis via RedisTemplate
-        // We'll push plain message DTOs that RedisChatMemoryStore understands,
-        // OR we can mirror how ChatMemoryStore stores messages (depends on implementation).
-        // For portability, store lightweight maps: {role,content,timestamp}
         for (ChatMessage m : last) {
-            // var map = new java.util.HashMap<String, Object>();
-            // map.put("role", m.getSender().getValue());
-            // map.put("content", m.getContent());
-            // map.put("timestamp", m.getCreatedAt() != null ? m.getCreatedAt().toString() : Instant.now().toString());
-            // redisTemplate.opsForList().rightPush(key, map);
-
             StoredMessage storedMessage = new StoredMessage();
             storedMessage.setMessageType(m.getSender());
             storedMessage.setText(m.getContent());
@@ -80,7 +71,9 @@ public class ChatMemoryHydrator {
             redisTemplate.opsForList().rightPush(key, storedMessage);
         }
 
-        // Optionally set TTL on the memory key
-         redisTemplate.expire(key, Duration.ofHours(1));
+            redisTemplate.expire(key, Duration.ofHours(1));
+        } catch (Exception e) {
+            log.error("[ChatMemoryHydrator] Failed to hydrate memory for {}: {}", conversationId, e.getMessage(), e);
+        }
     }
 }

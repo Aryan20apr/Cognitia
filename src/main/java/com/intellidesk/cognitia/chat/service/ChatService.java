@@ -36,13 +36,11 @@ import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
 import com.intellidesk.cognitia.utils.exceptionHandling.ThreadBusyException;
 
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
-@AllArgsConstructor
 @Slf4j
 public class ChatService {
 
@@ -53,6 +51,25 @@ public class ChatService {
     private final ThreadLockService threadLockService;
     private final ThreadTitleGenerationService titleGenerationService;
     private final TimelineToolCallbackProvider timelineToolCallbackProvider;
+    private final long streamTimeoutSeconds;
+
+    public ChatService(ChatClient chatClient,
+                       ChatThreadRepository threadRepository,
+                       ChatMessageRepository messageRepository,
+                       ChatMemoryHydrator chatMemoryHydrator,
+                       ThreadLockService threadLockService,
+                       ThreadTitleGenerationService titleGenerationService,
+                       TimelineToolCallbackProvider timelineToolCallbackProvider,
+                       @org.springframework.beans.factory.annotation.Value("${cognitia.chat.stream.timeout-seconds:180}") long streamTimeoutSeconds) {
+        this.chatClient = chatClient;
+        this.threadRepository = threadRepository;
+        this.messageRepository = messageRepository;
+        this.chatMemoryHydrator = chatMemoryHydrator;
+        this.threadLockService = threadLockService;
+        this.titleGenerationService = titleGenerationService;
+        this.timelineToolCallbackProvider = timelineToolCallbackProvider;
+        this.streamTimeoutSeconds = streamTimeoutSeconds;
+    }
 
     @Transactional
     public ChatThreadDTO getThread(String threadId) {
@@ -327,6 +344,7 @@ public class ChatService {
                             .user(ctx.userMessage())
                             .toolCallbacks(requestTools)
                             .stream().content()
+                            .timeout(Duration.ofSeconds(streamTimeoutSeconds))
                             .doOnNext(chunk -> {
                                 buffer.get().append(chunk);
                                 if (firstContentEmitted.compareAndSet(false, true)) {
