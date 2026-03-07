@@ -3,7 +3,6 @@ package com.intellidesk.cognitia.chat.config;
 import java.util.List;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
@@ -21,10 +20,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.intellidesk.cognitia.analytics.utils.IdempotencyCallAdvisor;
 import com.intellidesk.cognitia.analytics.utils.QuotaEnforcementAdvisor;
 import com.intellidesk.cognitia.analytics.utils.TokenAnalyticsAdvisorV2;
+import com.intellidesk.cognitia.chat.service.memory.SummarizingChatMemoryAdvisor;
 
 import lombok.RequiredArgsConstructor;
 
@@ -60,16 +61,27 @@ public class ChatConfiguration {
     private String titleModel;
 
     @Bean
-    public ChatMemory chatMemory(@Qualifier("redisChatMemoryRepository") ChatMemoryRepository repo) {
+    public ChatMemory chatMemory(@Qualifier("redisChatMemoryRepository") ChatMemoryRepository repo,
+                                 @Value("${cognitia.chat.memory.max-messages:50}") int maxMessages) {
         return MessageWindowChatMemory.builder()
                 .chatMemoryRepository(repo)
-                .maxMessages(10)
+                .maxMessages(maxMessages)
                 .build();
     }
 
     @Bean
-    public MessageChatMemoryAdvisor messageChatMemoryAdvisor(ChatMemory chatMemory) {
-        return MessageChatMemoryAdvisor.builder(chatMemory).build();
+    public SummarizingChatMemoryAdvisor summarizingChatMemoryAdvisor(
+            ChatMemory chatMemory,
+            @Qualifier("lightClient") ChatClient lightClient,
+            StringRedisTemplate stringRedisTemplate,
+            @Value("${cognitia.chat.memory.recent-window-size:8}") int recentWindowSize,
+            @Value("${cognitia.chat.memory.summarization-threshold:10}") int summarizationThreshold) {
+        return SummarizingChatMemoryAdvisor.builder(chatMemory)
+                .summaryClient(lightClient)
+                .redisTemplate(stringRedisTemplate)
+                .recentWindowSize(recentWindowSize)
+                .summarizationThreshold(summarizationThreshold)
+                .build();
     }
 
     @Bean
@@ -108,7 +120,7 @@ public class ChatConfiguration {
 
     @Bean
     @Primary
-    public ChatClient geminiChatClient(ChatModel chatModel, IdempotencyCallAdvisor idempotencyCallAdvisor, QuotaEnforcementAdvisor quotaEnforcementAdvisor, MessageChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsAdvisorV2 tokenAnalyticsCallAdvisor, RetrievalAugmentationAdvisor retrievalAugmentationAdvisor) {
+    public ChatClient geminiChatClient(ChatModel chatModel, IdempotencyCallAdvisor idempotencyCallAdvisor, QuotaEnforcementAdvisor quotaEnforcementAdvisor, SummarizingChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsAdvisorV2 tokenAnalyticsCallAdvisor, RetrievalAugmentationAdvisor retrievalAugmentationAdvisor) {
         return ChatClient.builder(chatModel)
             .defaultAdvisors(List.of(idempotencyCallAdvisor, quotaEnforcementAdvisor, chatMemoryAdvisor, retrievalAugmentationAdvisor, tokenAnalyticsCallAdvisor, new SimpleLoggerAdvisor()))
             .build();
