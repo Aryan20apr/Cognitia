@@ -29,7 +29,7 @@ public class ChatMemoryHydrator {
 
     public ChatMemoryHydrator(RedisTemplate<String, StoredMessage> redisTemplate,
                               ChatMessageRepository messageRepo,
-                              @Value("${cognitia.chat.memory.maxTurns:20}") int maxTurns,
+                              @Value("${cognitia.chat.memory.maxTurns:50}") int maxTurns,
                               @Value("${cognitia.chat.memory.prefix:cognitia:chat:memory:}") String memoryKeyPrefix) {
         this.redisTemplate = redisTemplate;
         this.messageRepo = messageRepo;
