@@ -76,12 +76,17 @@ public final class SummarizingChatMemoryAdvisor implements BaseChatMemoryAdvisor
         String conversationId = getConversationId(chatClientRequest.context(), this.defaultConversationId);
 
         List<Message> allMessages = this.chatMemory.get(conversationId);
+        int memorySize = allMessages.size();
 
         List<Message> processedMessages;
-        if (allMessages.size() > summarizationThreshold) {
+        if (memorySize > summarizationThreshold) {
             processedMessages = buildSummarizedMessages(conversationId, allMessages);
+            log.info("[SummarizingMemory] conversationId={} memorySize={} summarization=yes olderSummarized={} recentVerbatim={} promptMessagesSent={}",
+                    conversationId, memorySize, memorySize - recentWindowSize, recentWindowSize, processedMessages.size() + chatClientRequest.prompt().getInstructions().size());
         } else {
             processedMessages = new ArrayList<>(allMessages);
+            log.info("[SummarizingMemory] conversationId={} memorySize={} summarization=no threshold={} promptMessagesSent={}",
+                    conversationId, memorySize, summarizationThreshold, memorySize + chatClientRequest.prompt().getInstructions().size());
         }
 
         processedMessages.addAll(chatClientRequest.prompt().getInstructions());
@@ -106,6 +111,7 @@ public final class SummarizingChatMemoryAdvisor implements BaseChatMemoryAdvisor
 
     @Override
     public ChatClientResponse after(ChatClientResponse chatClientResponse, AdvisorChain advisorChain) {
+        String conversationId = this.getConversationId(chatClientResponse.context(), this.defaultConversationId);
         List<Message> assistantMessages = new ArrayList<>();
         if (chatClientResponse.chatResponse() != null) {
             assistantMessages = chatClientResponse.chatResponse()
@@ -114,9 +120,8 @@ public final class SummarizingChatMemoryAdvisor implements BaseChatMemoryAdvisor
                     .map(g -> (Message) g.getOutput())
                     .toList();
         }
-        this.chatMemory.add(
-                this.getConversationId(chatClientResponse.context(), this.defaultConversationId),
-                assistantMessages);
+        this.chatMemory.add(conversationId, assistantMessages);
+        log.info("[SummarizingMemory] after conversationId={} assistantMessagesSaved={}", conversationId, assistantMessages.size());
         return chatClientResponse;
     }
 
@@ -152,12 +157,11 @@ public final class SummarizingChatMemoryAdvisor implements BaseChatMemoryAdvisor
 
         String cached = redisTemplate.opsForValue().get(cacheKey);
         if (cached != null) {
-            log.debug("[SummarizingMemory] Cache hit for conversation {}", conversationId);
+            log.info("[SummarizingMemory] summaryCache=hit conversationId={} messagesSummarized={} hash={}", conversationId, messagesToSummarize.size(), contentHash);
             return cached;
         }
 
-        log.info("[SummarizingMemory] Generating summary for {} messages in conversation {}",
-                messagesToSummarize.size(), conversationId);
+        log.info("[SummarizingMemory] summaryCache=miss conversationId={} generating summary for messages={}", conversationId, messagesToSummarize.size());
 
         String transcript = messagesToSummarize.stream()
                 .map(m -> m.getMessageType().name() + ": " + m.getText())
@@ -175,13 +179,13 @@ public final class SummarizingChatMemoryAdvisor implements BaseChatMemoryAdvisor
                     .call()
                     .content();
         } catch (Exception e) {
-            log.warn("[SummarizingMemory] Summary generation failed, falling back to truncation: {}",
-                    e.getMessage());
+            log.warn("[SummarizingMemory] summaryGenerationFailed conversationId={} error={} usingTruncationFallback messagesKept=4", conversationId, e.getMessage());
             summary = truncateFallback(messagesToSummarize);
         }
 
         if (summary != null && !summary.isBlank()) {
             redisTemplate.opsForValue().set(cacheKey, summary, SUMMARY_TTL);
+            log.info("[SummarizingMemory] summaryCached conversationId={} hash={} ttlHours={}", conversationId, contentHash, SUMMARY_TTL.toHours());
         }
 
         return summary != null ? summary : "";

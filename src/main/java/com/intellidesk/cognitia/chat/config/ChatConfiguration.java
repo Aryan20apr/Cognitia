@@ -12,6 +12,7 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
+import org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter;
 import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -42,14 +43,14 @@ public class ChatConfiguration {
     // @Value("${title-generation.model}")
     // private String titleModel;
 
-    @Value("${groq.api-key}")
-    private String groqApiKey;
+    // @Value("${groq.api-key}")
+    // private String groqApiKey;
 
-    @Value("${groq.base-url}")
-    private String groqBaseUrl;
+    // @Value("${groq.base-url}")
+    // private String groqBaseUrl;
 
-    @Value("${groq.chat.model}")
-    private String groqChatModel;
+    // @Value("${groq.chat.model}")
+    // private String groqChatModel;
 
     @Value("${title-generation.api-key}")
     private String titleApiKey;
@@ -97,26 +98,29 @@ public class ChatConfiguration {
                         .similarityThreshold(0.50)
                         .topK(3)
                         .build())
+                .queryAugmenter(ContextualQueryAugmenter.builder()
+                        .allowEmptyContext(true)
+                        .build())
                 .build();
     }
 
-    @Bean
-    @Primary
-    public ChatModel groqChatModel() {
-        OpenAiApi openAiApi = OpenAiApi.builder()
-            .apiKey(groqApiKey)
-            .baseUrl(groqBaseUrl)
-            .build();
+    // @Bean
+    // @Primary
+    // public ChatModel groqChatModel() {
+    //     OpenAiApi openAiApi = OpenAiApi.builder()
+    //         .apiKey(groqApiKey)
+    //         .baseUrl(groqBaseUrl)
+    //         .build();
 
-        OpenAiChatOptions options = OpenAiChatOptions.builder()
-            .model(groqChatModel)
-            .build();
+    //     OpenAiChatOptions options = OpenAiChatOptions.builder()
+    //         .model(groqChatModel)
+    //         .build();
 
-        return OpenAiChatModel.builder()
-            .openAiApi(openAiApi)
-            .defaultOptions(options)
-            .build();
-    }
+    //     return OpenAiChatModel.builder()
+    //         .openAiApi(openAiApi)
+    //         .defaultOptions(options)
+    //         .build();
+    // }
 
     @Bean
     @Primary
