@@ -11,6 +11,9 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
+import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.analytics.models.dto.AssignPlanRequest;
 import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
 import com.intellidesk.cognitia.analytics.models.dto.QuotaProvisionRequest;
@@ -31,11 +34,13 @@ import com.intellidesk.cognitia.analytics.service.ChatUsageService;
 import com.intellidesk.cognitia.analytics.service.QuotaService;
 import com.intellidesk.cognitia.analytics.service.RedisCounterService;
 import com.intellidesk.cognitia.analytics.utils.TenantQuotaMapper;
+import com.intellidesk.cognitia.notification.EmailService;
 import com.intellidesk.cognitia.payments.models.entities.PaymentOrder;
 import com.intellidesk.cognitia.payments.models.enums.FulfillmentStatus;
 import com.intellidesk.cognitia.payments.models.enums.PaymentPurpose;
 import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
 import com.intellidesk.cognitia.payments.repository.OrderRepository;
+import com.intellidesk.cognitia.userandauth.repository.TenantRepository;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.PaymentRequiredException;
 
 import lombok.RequiredArgsConstructor;
@@ -50,6 +55,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class QuotaServiceImpl implements QuotaService {
 
+    private static final String FALLBACK_PLAN_NAME = "your plan";
+
     private final RedisCounterService redisCounterService;
     private final TenantQuotaRepository tenantQuotaRepository;
     private final UserQuotaRepository userQuotaRepository;
@@ -59,6 +66,8 @@ public class QuotaServiceImpl implements QuotaService {
     private final PlanRepository planRepository;
     private final TenantQuotaMapper mapper;
     private final OrderRepository orderRepository;
+    private final EmailService emailService;
+    private final TenantRepository tenantRepository;
 
     @Override
     @Transactional
@@ -179,6 +188,8 @@ public class QuotaServiceImpl implements QuotaService {
             t.setOverageCharges(overageChargeAmount);
             log.info("Updated overageCharges for tenantId={}: rate={}, overageChargeAmount={}", tenantId, rate, overageChargeAmount);
 
+            checkAndNotifyThresholds(t, tenantId);
+
             tenantQuotaRepository.save(t);
         }
         log.info("Successfully recorded usage for tenantId={}, requestId={}", tenantId, requestId);
@@ -205,6 +216,47 @@ public class QuotaServiceImpl implements QuotaService {
         long limit = tQuota.getMaxTotalTokens();
         long used = currentTenantTokens(tenantId);
         return Math.max(0, limit - used);
+    }
+
+    private void checkAndNotifyThresholds(TenantQuota quota, UUID tenantId) {
+        long used = quota.getUsedTotalTokens() != null ? quota.getUsedTotalTokens() : 0L;
+        long max = quota.getMaxTotalTokens();
+        if (max <= 0) return;
+
+        double ratio = (double) used / max;
+
+        if (ratio >= 1.0 && !Boolean.TRUE.equals(quota.getThreshold100Notified())) {
+            quota.setThreshold100Notified(true);
+            sendQuotaAlert(tenantId, 100, used, max);
+        } else if (ratio >= 0.8 && !Boolean.TRUE.equals(quota.getThreshold80Notified())) {
+            quota.setThreshold80Notified(true);
+            sendQuotaAlert(tenantId, 80, used, max);
+        }
+    }
+
+    private void sendQuotaAlert(UUID tenantId, int thresholdPercent, long used, long max) {
+        try {
+            tenantRepository.findById(tenantId).ifPresent(tenant -> {
+                String email = tenant.getContactEmail();
+                if (email != null && !email.isBlank()) {
+                    String planName = tenantQuotaRepository.findActiveQuotaByTenant(tenantId)
+                            .map(q -> q.getPlanId() != null ? q.getPlanId().getName() : FALLBACK_PLAN_NAME)
+                            .orElse(FALLBACK_PLAN_NAME);
+                    emailService.sendHtml(email,
+                            "Cognitia: " + thresholdPercent + "% of your token quota used",
+                            Constants.TEMPLATE_QUOTA_WARNING,
+                            Map.of(
+                                "level", thresholdPercent,
+                                "usedTokens", used,
+                                "maxTokens", max,
+                                "planName", planName
+                            ));
+                    log.info("Sent {}% quota warning to tenant {} at {}", thresholdPercent, tenantId, email);
+                }
+            });
+        } catch (Exception e) {
+            log.error("Failed to send quota alert for tenant {}: {}", tenantId, e.getMessage());
+        }
     }
 
     private long currentTenantTokens(UUID tenantId) {
@@ -274,6 +326,9 @@ public class QuotaServiceImpl implements QuotaService {
         quota.setMaxTotalTokens(targetPlan.getIncludedTotalTokens());
         quota.setMaxResources(targetPlan.getIncludedDocs() != null ? targetPlan.getIncludedDocs().intValue() : null);
         quota.setMaxUsers(targetPlan.getIncludedUsers() != null ? targetPlan.getIncludedUsers().intValue() : null);
+
+        quota.setThreshold80Notified(false);
+        quota.setThreshold100Notified(false);
 
         if (request.isResetUsage()) {
             quota.setUsedPromptTokens(0L);

@@ -8,10 +8,15 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
+import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.analytics.models.dto.AssignPlanRequest;
 import com.intellidesk.cognitia.analytics.models.dto.PlanDTO;
 import com.intellidesk.cognitia.analytics.service.PlanCatalogService;
 import com.intellidesk.cognitia.analytics.service.QuotaService;
+import com.intellidesk.cognitia.notification.EmailService;
+import com.intellidesk.cognitia.notification.OtpService;
 import com.intellidesk.cognitia.userandauth.models.dtos.RoleCreationDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.TenantDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserCreationDTO;
@@ -36,6 +41,8 @@ public class TenantServiceImpl implements TenantService {
     private final UserService userService;
     private final QuotaService quotaService;
     private final PlanCatalogService planCatalogService;
+    private final OtpService otpService;
+    private final EmailService emailService;
 
     @Override
     public Boolean checkIfExists(String id) {
@@ -75,7 +82,9 @@ public class TenantServiceImpl implements TenantService {
 
 
         assignDefaultPlan(newTenant.getId());
-        
+
+        sendSignupOtp(tenantDTO.getAdminEmail());
+
         return mapToDTO(newTenant);
     }
 
@@ -122,6 +131,17 @@ public class TenantServiceImpl implements TenantService {
     public List<Tenant> getAllCompanies() {
 
         return tenantRepository.findAll();
+    }
+
+    private void sendSignupOtp(String email) {
+        try {
+            String otp = otpService.generateAndStore(email, Constants.OTP_PURPOSE_SIGNUP);
+            emailService.sendHtml(email, "Verify your Cognitia account",
+                    Constants.TEMPLATE_OTP, Map.of("otp", otp, "subject", "Verify your Cognitia account"));
+            log.info("[TenantServiceImpl] Signup OTP sent to {}", email);
+        } catch (Exception e) {
+            log.error("[TenantServiceImpl] Failed to send signup OTP to {}: {}", email, e.getMessage());
+        }
     }
 
     private TenantDTO mapToDTO(Tenant tenant){
