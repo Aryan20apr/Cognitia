@@ -285,11 +285,14 @@ public class QuotaServiceImpl implements QuotaService {
 
         TenantQuota saved = tenantQuotaRepository.save(quota);
 
-        // Mark payment as fulfilled after successful plan assignment (prevents replay)
         if (paymentOrder != null) {
+            if (currentPlan != null) {
+                paymentOrder.setPreviousPlanId(currentPlan.getId());
+            }
             markPaymentFulfilled(paymentOrder);
-            log.info("Payment order {} marked as fulfilled for tenant {} plan upgrade.", 
-                    paymentOrder.getOrderRef(), tenantId);
+            log.info("Payment order {} marked as fulfilled for tenant {} plan upgrade. Previous plan: {}",
+                    paymentOrder.getOrderRef(), tenantId,
+                    currentPlan != null ? currentPlan.getName() : "none");
         }
 
         return mapper.toDto(saved);
@@ -364,6 +367,18 @@ public class QuotaServiceImpl implements QuotaService {
 
         if (order.getFulfillmentStatus() != FulfillmentStatus.UNFULFILLED) {
             throw new PaymentRequiredException("Payment has already been used. Status: " + order.getFulfillmentStatus());
+        }
+
+        Plan targetPlan = planRepository.findById(targetPlanId)
+            .orElseThrow(() -> new PaymentRequiredException("Target plan not found for amount validation"));
+        if (targetPlan.getPricePerMonth() != null) {
+            long expectedAmountPaise = targetPlan.getPricePerMonth()
+                .multiply(BigDecimal.valueOf(100)).longValue();
+            if (order.getAmount() < expectedAmountPaise) {
+                throw new PaymentRequiredException(
+                    "Payment amount insufficient. Expected: " + expectedAmountPaise +
+                    ", Paid: " + order.getAmount());
+            }
         }
         
         return order;

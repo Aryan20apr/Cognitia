@@ -136,6 +136,12 @@ public class TimelineToolCallbackProvider {
         @Override
         public String call(String toolInput) {
             String toolName = delegate.getToolDefinition().name();
+
+            if (timeline != null && timeline.isCancelled()) {
+                log.info("[TimedToolCallback] Client disconnected, skipping tool {}", toolName);
+                return "{\"error\":true,\"tool\":\"" + toolName + "\",\"message\":\"Request cancelled\"}";
+            }
+
             long start = System.currentTimeMillis();
 
             try {
@@ -151,12 +157,16 @@ public class TimelineToolCallbackProvider {
                 return result;
             } catch (Exception e) {
                 long duration = System.currentTimeMillis() - start;
+                String errorPayload = "{\"error\":true,\"tool\":\"" + toolName
+                    + "\",\"message\":\"" + sanitize(e.getMessage())
+                    + "\",\"durationMs\":" + duration + "}";
 
                 if (timeline != null) {
                     timeline.emitStep(AgentStep.error(toolName,
                             "Failed after " + duration + "ms: " + e.getMessage()));
                 }
-                throw e;
+                log.error("[TimedToolCallback] Tool {} failed after {}ms", toolName, duration, e);
+                return errorPayload;
             }
         }
 
@@ -183,6 +193,14 @@ public class TimelineToolCallbackProvider {
             if (text.length() <= maxLen)
                 return text;
             return text.substring(0, maxLen) + "...";
+        }
+
+        private static String sanitize(String message) {
+            if (message == null) return "unknown error";
+            return message.replace("\\", "\\\\")
+                          .replace("\"", "\\\"")
+                          .replace("\n", "\\n")
+                          .replace("\r", "\\r");
         }
     }
 }

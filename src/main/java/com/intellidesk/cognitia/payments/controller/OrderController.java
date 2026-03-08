@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.payments.models.dtos.OrderCreationDTO;
 import com.intellidesk.cognitia.payments.models.dtos.OrderDTO;
@@ -47,7 +49,7 @@ public class OrderController {
         description = "Invalid order creation request"
     )
     @PostMapping
-    public ResponseEntity<ApiResponse<?>> createRazorpayOrder(@RequestBody OrderCreationDTO order) {
+    public ResponseEntity<ApiResponse<?>> createRazorpayOrder(@RequestBody @Valid OrderCreationDTO order) {
         
         OrderDTO newOrder = paymentGateway.createOrder(order);
         ApiResponse<OrderDTO> apiResponse = new ApiResponse<>("Order Created Successfully", true, newOrder);

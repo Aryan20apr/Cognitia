@@ -17,6 +17,7 @@ import com.intellidesk.cognitia.analytics.service.QuotaService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -36,7 +37,7 @@ public class TenantQuotaController {
     @Operation(summary = "Assign a plan to tenant")
     @PostMapping("/{tenantId}/assign-plan")
     public ResponseEntity<TenantQuotaDTO> assignPlan(@PathVariable UUID tenantId,
-                                                     @RequestBody AssignPlanRequest request) {
+                                                     @RequestBody @Valid AssignPlanRequest request) {
         return ResponseEntity.ok(tenantQuotaService.assignPlan(tenantId, request));
     }
 

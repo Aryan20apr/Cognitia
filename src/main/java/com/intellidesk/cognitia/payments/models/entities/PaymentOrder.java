@@ -118,6 +118,9 @@ public class PaymentOrder extends TenantAwareEntity {
     @Enumerated(EnumType.STRING)
     private FulfillmentStatus fulfillmentStatus;
 
+    @Column(name = "previous_plan_id")
+    private UUID previousPlanId;
+
     @Column(name = "attempts", nullable = false)
     private Integer attempts;
 

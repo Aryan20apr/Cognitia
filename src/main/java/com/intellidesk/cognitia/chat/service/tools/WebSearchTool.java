@@ -10,7 +10,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellidesk.cognitia.chat.models.dtos.TavilyResponse;
@@ -18,14 +17,11 @@ import com.intellidesk.cognitia.chat.models.dtos.TavilyResult;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Tool for performing web search via the Tavily Search API.
- */
 @Component
 @Slf4j
 public class WebSearchTool implements TimelineAwareTool {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final TavilyApiClient tavilyApiClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${tavily.api.url}")
@@ -39,6 +35,10 @@ public class WebSearchTool implements TimelineAwareTool {
 
     @Value("${tavily.api.topic}")
     private String defaultTopic;
+
+    public WebSearchTool(TavilyApiClient tavilyApiClient) {
+        this.tavilyApiClient = tavilyApiClient;
+    }
 
     @Tool(description = "Perform a web search via Tavily and return top results with snippet and URLs", returnDirect = false)
     public List<TavilyResult> searchWeb(
@@ -74,7 +74,7 @@ public class WebSearchTool implements TimelineAwareTool {
             headers.set("Authorization", "Bearer " + apiKey);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            String rawResponse = restTemplate.postForObject(apiUrl, entity, String.class);
+            String rawResponse = tavilyApiClient.search(apiUrl, entity);
 
             log.info("Tavily WebSearch - Raw Response: {}", rawResponse);
 
@@ -82,7 +82,7 @@ public class WebSearchTool implements TimelineAwareTool {
                 log.error(
                         "Tavily WebSearch - Tavily returned null response for params: query={}, maxResults={}, topic={}",
                         query, maxResults, topic);
-                throw new RuntimeException("Tavily returned null response");
+                return List.of();
             }
             // Parse JSON
             TavilyResponse resp = objectMapper.readValue(rawResponse, TavilyResponse.class);
@@ -97,7 +97,7 @@ public class WebSearchTool implements TimelineAwareTool {
             return resp.getResults();
         } catch (Exception e) {
             log.error("Error calling Tavily Search API: {}", e.getMessage(), e);
-            throw new RuntimeException("Error calling Tavily Search API: " + e.getMessage(), e);
+            return List.of();
         }
     }
 

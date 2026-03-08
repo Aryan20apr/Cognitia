@@ -7,20 +7,17 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.intellidesk.cognitia.payments.events.PaymentEventListener;
+import com.intellidesk.cognitia.payments.events.PaymentDeadLetterEvent;
 import com.intellidesk.cognitia.payments.models.entities.Payment;
 import com.intellidesk.cognitia.payments.models.enums.ProcessingStatus;
 import com.intellidesk.cognitia.payments.repository.PaymentsRepository;
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Scheduled job to retry failed payment processing.
- * Acts as a fallback mechanism for:
- * - Failed payments that need retry
- * - Pending payments where the async event never fired (e.g., JVM crash)
- * - Stuck processing payments (timeout protection)
- */
+import org.springframework.context.ApplicationEventPublisher;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -28,6 +25,7 @@ public class PaymentRetryScheduler {
     
     private final PaymentsRepository paymentRepository;
     private final PaymentEventListener paymentEventListener;
+    private final ApplicationEventPublisher eventPublisher;
     
     // Thresholds for identifying stuck payments
     private static final int PENDING_THRESHOLD_SECONDS = 60;     
@@ -35,9 +33,9 @@ public class PaymentRetryScheduler {
     
     /**
      * Runs every 30 seconds to pick up failed/stuck payments.
-     * Uses a short interval because payment processing should be timely.
      */
-    @Scheduled(fixedDelay = 30000)  // 30 seconds
+    @Scheduled(fixedDelay = 30000)
+    @SchedulerLock(name = "paymentRetryScheduler", lockAtMostFor = "PT5M", lockAtLeastFor = "PT20S")
     public void retryFailedPayments() {
         log.debug("[PaymentRetryScheduler] Starting retry check");
         
@@ -74,12 +72,12 @@ public class PaymentRetryScheduler {
             
             // Check if max attempts exceeded
             if (payment.getAttempts() >= payment.getMaxAttempts()) {
-                log.warn("[PaymentRetryScheduler] Payment {} exceeded max attempts, marking as DEAD",
+                log.error("[PaymentRetryScheduler] Payment {} exceeded max attempts, marking as DEAD_LETTER",
                     payment.getId());
-                payment.setProcessingStatus(ProcessingStatus.FAILED);
+                payment.setProcessingStatus(ProcessingStatus.DEAD_LETTER);
                 payment.setLastError("Exceeded maximum retry attempts");
                 paymentRepository.save(payment);
-                
+                eventPublisher.publishEvent(new PaymentDeadLetterEvent(this, payment));
                 return;
             }
             

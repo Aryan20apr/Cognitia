@@ -17,6 +17,7 @@ import com.intellidesk.cognitia.payments.models.dtos.razopayDtos.PaymentVerifica
 import com.intellidesk.cognitia.payments.models.entities.PaymentOrder;
 import com.intellidesk.cognitia.payments.models.enums.FulfillmentStatus;
 import com.intellidesk.cognitia.payments.models.enums.OrderStatus;
+import com.intellidesk.cognitia.payments.models.enums.PaymentStatus;
 import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
 import com.intellidesk.cognitia.payments.repository.OrderRepository;
 import com.intellidesk.cognitia.payments.service.gateway.PaymentGateway;
@@ -105,6 +106,8 @@ public class RazorpayGateway implements PaymentGateway {
             .purposeType(orderCreationDTO.getPurposeType())
             .purposeRefId(orderCreationDTO.getPurposeRefId())
             .fulfillmentStatus(FulfillmentStatus.UNFULFILLED)
+            .paymentStatus(PaymentStatus.CREATED)
+            .verification(PaymentVerification.PENDING)
             .build();
 
             paymentOrder.setTenantId(tenantId);
