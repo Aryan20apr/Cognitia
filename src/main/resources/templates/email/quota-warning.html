@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Usage Quota Warning</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;padding:40px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <tr>
+                        <td th:style="'background-color:' + (${level == 100} ? '#dc2626' : '#d97706') + ';padding:32px 40px;text-align:center;'">
+                            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:600;">Cognitia</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:40px;">
+                            <h2 style="color:#1a1a2e;margin:0 0 16px;font-size:20px;font-weight:600;">
+                                <span th:if="${level == 100}">Usage Limit Reached</span>
+                                <span th:if="${level != 100}">Usage Quota Warning</span>
+                            </h2>
+                            <p style="color:#51545e;font-size:15px;line-height:1.6;margin:0 0 24px;">
+                                <span th:if="${level == 100}">
+                                    Your organization has reached 100% of its usage quota. Services may be limited until your quota resets or you upgrade your plan.
+                                </span>
+                                <span th:if="${level != 100}">
+                                    Your organization has used <strong th:text="${level} + '%'">80%</strong> of its usage quota. Consider upgrading your plan to avoid service interruption.
+                                </span>
+                            </p>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;border-radius:6px;margin:0 0 24px;">
+                                <tr>
+                                    <td style="padding:20px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="color:#51545e;font-size:14px;padding:6px 0;">Current Usage</td>
+                                                <td style="font-size:14px;font-weight:600;text-align:right;padding:6px 0;"
+                                                    th:style="'color:' + (${level == 100} ? '#dc2626' : '#d97706')"
+                                                    th:text="${level} + '%'">80%</td>
+                                            </tr>
+                                            <tr th:if="${planName}">
+                                                <td style="color:#51545e;font-size:14px;padding:6px 0;">Current Plan</td>
+                                                <td style="color:#1a1a2e;font-size:14px;font-weight:600;text-align:right;padding:6px 0;" th:text="${planName}">Starter</td>
+                                            </tr>
+                                            <tr th:if="${usedTokens}">
+                                                <td style="color:#51545e;font-size:14px;padding:6px 0;">Tokens Used</td>
+                                                <td style="color:#1a1a2e;font-size:14px;font-weight:600;text-align:right;padding:6px 0;" th:text="${usedTokens} + ' / ' + ${maxTokens}">800K / 1M</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div th:if="${upgradeLink}" style="text-align:center;margin:0 0 24px;">
+                                <a th:href="${upgradeLink}" style="display:inline-block;background-color:#4f46e5;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:6px;">
+                                    Upgrade Plan
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background-color:#f4f4f7;padding:24px 40px;text-align:center;">
+                            <p style="color:#9a9ea6;font-size:13px;margin:0;">&copy; Cognitia. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
