@@ -80,6 +80,11 @@ public class PaymentController {
         
         log.info("[PaymentController] Webhook signature verified successfully");
         
+        if (eventId == null || eventId.isBlank()) {
+            log.warn("[PaymentController] Missing x-razorpay-event-id header");
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Missing event ID header"));
+        }
         
         try {
             Map<String, Object> payload = objectMapper.readValue(rawPayload, new TypeReference<Map<String, Object>>() {});
