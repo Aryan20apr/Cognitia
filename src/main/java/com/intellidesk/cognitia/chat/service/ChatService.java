@@ -34,6 +34,8 @@ import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
+import com.intellidesk.cognitia.utils.exceptionHandling.LlmResponseParseException;
+import com.intellidesk.cognitia.utils.exceptionHandling.LlmUnavailableException;
 import com.intellidesk.cognitia.utils.exceptionHandling.ThreadBusyException;
 
 import lombok.extern.slf4j.Slf4j;
@@ -180,7 +182,9 @@ public class ChatService {
                     }
                     """;
 
-        CustomChatResponse customChatResponse = chatClient.prompt()
+        CustomChatResponse customChatResponse;
+        try {
+            customChatResponse = chatClient.prompt()
                 .advisors(a -> {
                     a.param(ChatMemory.CONVERSATION_ID, threadId.toString());
                     a.param(Constants.PARAM_REQUEST_ID, requestId != null ? requestId : UUID.randomUUID().toString());
@@ -192,6 +196,14 @@ public class ChatService {
                 .toolCallbacks(timelineToolCallbackProvider.createAugmentedToolCallbacks(null))
                 .call()
                 .entity(CustomChatResponse.class);
+        } catch (org.springframework.web.client.HttpClientErrorException
+                | org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            log.error("[ChatService] LLM API error for thread {}: {}", threadId, e.getMessage(), e);
+            throw new LlmUnavailableException("AI service is temporarily unavailable", e);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            log.error("[ChatService] Failed to parse LLM response for thread {}: {}", threadId, e.getMessage(), e);
+            throw new LlmResponseParseException("Failed to parse AI response", e);
+        }
 
             String answer = customChatResponse != null ? customChatResponse.getAnswer() : "";
             ChatMessage aiMsg = ChatMessage.builder()
@@ -251,21 +263,19 @@ public class ChatService {
     public Flux<ServerSentEvent<String>> streamUserMessage(UserMessageDTO message) {
         final UUID threadId = UUID.fromString(message.getThreadId());
 
-        // Try to acquire thread lock BEFORE starting the reactive chain
-        String lockToken = threadLockService.tryAcquire(threadId);
-        if (lockToken == null) {
-            ThreadLockStatus status = threadLockService.getStatus(threadId);
-            log.info("[ChatService] Thread {} is busy, queue position: {}", threadId, status.queuePosition());
-            throw new ThreadBusyException(message.getThreadId(), status.queuePosition());
-        }
-
-        log.info("[ChatService] Lock acquired for thread {}, starting stream", threadId);
-
-        // Wrap synchronous setup in Mono.fromCallable for proper reactive error
-        // handling
-        return Mono.fromCallable(() -> {
+        return Flux.usingWhen(
+            Mono.fromCallable(() -> {
+                String token = threadLockService.tryAcquire(threadId);
+                if (token == null) {
+                    ThreadLockStatus status = threadLockService.getStatus(threadId);
+                    log.info("[ChatService] Thread {} is busy, queue position: {}", threadId, status.queuePosition());
+                    throw new ThreadBusyException(message.getThreadId(), status.queuePosition());
+                }
+                log.info("[ChatService] Lock acquired for thread {}, starting stream", threadId);
+                return token;
+            }),
+            lockToken -> Mono.fromCallable(() -> {
             String requestId = message.getRequestId();
-            // Get current authenticated user ID
             String userId = extractUserIdFromSecurityContext();
 
             ChatThread thread = threadRepository.findById(threadId)
@@ -367,11 +377,6 @@ public class ChatService {
                                 log.info("[ChatService] Stream completed for thread {}", ctx.threadId());
 
                                 timeline.complete();
-                            })
-                            .doFinally(signalType -> {
-                                threadLockService.release(ctx.threadId(), ctx.lockToken());
-                                log.info("[ChatService] Lock released for thread {} (signal: {})", ctx.threadId(),
-                                        signalType);
                             });
 
                     return Flux.merge(timeline.steps(), contentStream)
@@ -399,11 +404,12 @@ public class ChatService {
                             .concatWith(
                                     Mono.just(
                                             ServerSentEvent.<String>builder("[DONE]").build()));
-                })
-                .doOnError(e -> {
-                    threadLockService.release(threadId, lockToken);
-                    log.error("[ChatService] Error in stream for thread {}: {}", threadId, e.getMessage());
-                });
+                }),
+            lockToken -> Mono.fromRunnable(() -> {
+                threadLockService.release(threadId, lockToken);
+                log.info("[ChatService] Lock released for thread {} (cleanup)", threadId);
+            })
+        );
     }
 
     /**
