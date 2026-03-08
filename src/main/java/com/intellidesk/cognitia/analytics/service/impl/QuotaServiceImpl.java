@@ -365,6 +365,18 @@ public class QuotaServiceImpl implements QuotaService {
         if (order.getFulfillmentStatus() != FulfillmentStatus.UNFULFILLED) {
             throw new PaymentRequiredException("Payment has already been used. Status: " + order.getFulfillmentStatus());
         }
+
+        Plan targetPlan = planRepository.findById(targetPlanId)
+            .orElseThrow(() -> new PaymentRequiredException("Target plan not found for amount validation"));
+        if (targetPlan.getPricePerMonth() != null) {
+            long expectedAmountPaise = targetPlan.getPricePerMonth()
+                .multiply(BigDecimal.valueOf(100)).longValue();
+            if (order.getAmount() < expectedAmountPaise) {
+                throw new PaymentRequiredException(
+                    "Payment amount insufficient. Expected: " + expectedAmountPaise +
+                    ", Paid: " + order.getAmount());
+            }
+        }
         
         return order;
     }
