@@ -1,5 +1,6 @@
 package com.intellidesk.cognitia.payments.repository;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -10,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 
 import com.intellidesk.cognitia.payments.models.entities.PaymentOrder;
 import com.intellidesk.cognitia.payments.models.enums.FulfillmentStatus;
+import com.intellidesk.cognitia.payments.models.enums.OrderStatus;
 import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
 
 public interface OrderRepository extends JpaRepository<PaymentOrder, UUID> {
@@ -32,4 +34,10 @@ public interface OrderRepository extends JpaRepository<PaymentOrder, UUID> {
     int updateFulfillmentStatusByOrderId(@Param("orderId") String orderId, @Param("status") FulfillmentStatus status);
     
     Optional<PaymentOrder> findByOrderId(String orderId);
+
+    @Modifying
+    @Query("UPDATE PaymentOrder p SET p.status = :newStatus WHERE p.status = :currentStatus AND p.createdAt < :threshold")
+    int expireStaleOrders(@Param("currentStatus") OrderStatus currentStatus,
+                          @Param("threshold") OffsetDateTime threshold,
+                          @Param("newStatus") OrderStatus newStatus);
 }

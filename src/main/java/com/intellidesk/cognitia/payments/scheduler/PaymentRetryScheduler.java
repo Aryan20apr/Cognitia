@@ -33,7 +33,6 @@ public class PaymentRetryScheduler {
     
     /**
      * Runs every 30 seconds to pick up failed/stuck payments.
-     * Uses a short interval because payment processing should be timely.
      */
     @Scheduled(fixedDelay = 30000)
     @SchedulerLock(name = "paymentRetryScheduler", lockAtMostFor = "PT5M", lockAtLeastFor = "PT20S")
