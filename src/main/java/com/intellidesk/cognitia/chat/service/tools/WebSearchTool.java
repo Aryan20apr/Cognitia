@@ -10,7 +10,6 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellidesk.cognitia.chat.models.dtos.TavilyResponse;
@@ -18,14 +17,11 @@ import com.intellidesk.cognitia.chat.models.dtos.TavilyResult;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Tool for performing web search via the Tavily Search API.
- */
 @Component
 @Slf4j
 public class WebSearchTool implements TimelineAwareTool {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final TavilyApiClient tavilyApiClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${tavily.api.url}")
@@ -39,6 +35,10 @@ public class WebSearchTool implements TimelineAwareTool {
 
     @Value("${tavily.api.topic}")
     private String defaultTopic;
+
+    public WebSearchTool(TavilyApiClient tavilyApiClient) {
+        this.tavilyApiClient = tavilyApiClient;
+    }
 
     @Tool(description = "Perform a web search via Tavily and return top results with snippet and URLs", returnDirect = false)
     public List<TavilyResult> searchWeb(
@@ -74,7 +74,7 @@ public class WebSearchTool implements TimelineAwareTool {
             headers.set("Authorization", "Bearer " + apiKey);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            String rawResponse = restTemplate.postForObject(apiUrl, entity, String.class);
+            String rawResponse = tavilyApiClient.search(apiUrl, entity);
 
             log.info("Tavily WebSearch - Raw Response: {}", rawResponse);
 

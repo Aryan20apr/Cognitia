@@ -136,6 +136,12 @@ public class TimelineToolCallbackProvider {
         @Override
         public String call(String toolInput) {
             String toolName = delegate.getToolDefinition().name();
+
+            if (timeline != null && timeline.isCancelled()) {
+                log.info("[TimedToolCallback] Client disconnected, skipping tool {}", toolName);
+                return "{\"error\":true,\"tool\":\"" + toolName + "\",\"message\":\"Request cancelled\"}";
+            }
+
             long start = System.currentTimeMillis();
 
             try {

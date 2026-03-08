@@ -1,6 +1,5 @@
 package com.intellidesk.cognitia.chat.service.tools;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -10,29 +9,19 @@ import java.util.stream.Collectors;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellidesk.cognitia.chat.models.dtos.TavilyExtractResponse;
 
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Tool for extracting text from web pages using Tavily Extract API.
- */
 @Component
 @Slf4j
 public class WebExtractTool implements TimelineAwareTool{
 
+    private final TavilyApiClient tavilyApiClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private WebClient webClient;
-
-    @Value("${tavily.api.key}")
-    private String apiKey;
 
     @Value("${tavily.extract.url:https://api.tavily.com/extract}")
     private String extractApiUrl;
@@ -40,17 +29,10 @@ public class WebExtractTool implements TimelineAwareTool{
     @Value("${tavily.extract.chunks_per_source:4}")
     private int defaultChunksPerSource;
 
-    @Value("${tavily.extract.timeout_seconds:30}")
-    private int timeoutSeconds;
-
     private static final String ERROR_MESSAGE = "Could not extract content from the URL(s). The page may be inaccessible or protected.";
 
-    @PostConstruct
-    public void init() {
-        this.webClient = WebClient.builder()
-                .baseUrl(extractApiUrl)
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .build();
+    public WebExtractTool(TavilyApiClient tavilyApiClient) {
+        this.tavilyApiClient = tavilyApiClient;
     }
 
     @Tool(description = "Extract and retrieve specific content from web pages using Tavily Extract API. Use this tool when you need to extract detailed information from specific URLs based on a query.", returnDirect = false)
@@ -96,13 +78,7 @@ public class WebExtractTool implements TimelineAwareTool{
 
         try {
             log.info("Tavily Extract - Sending API request to {}", extractApiUrl);
-            String rawResponse = webClient.post()
-                    .uri(extractApiUrl)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block(Duration.ofSeconds(timeoutSeconds));
+            String rawResponse = tavilyApiClient.extract(extractApiUrl, requestBody);
 
             log.info("Tavily Extract - Received API response, response length: {} characters", 
                     rawResponse != null ? rawResponse.length() : 0);

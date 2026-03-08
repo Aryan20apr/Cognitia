@@ -138,6 +138,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.OK).body(body);
     }
 
+    @ExceptionHandler(LlmUnavailableException.class)
+    public ResponseEntity<ExceptionApiResponse<?>> handleLlmUnavailable(LlmUnavailableException ex) {
+        log.error("[GlobalExceptionHandler] LLM unavailable: {}", ex.getMessage(), ex);
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message(ex.getMessage())
+                .data(null)
+                .code(503)
+                .build();
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+    }
+
+    @ExceptionHandler(LlmResponseParseException.class)
+    public ResponseEntity<ExceptionApiResponse<?>> handleLlmResponseParse(LlmResponseParseException ex) {
+        log.error("[GlobalExceptionHandler] LLM response parse error: {}", ex.getMessage(), ex);
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message(ex.getMessage())
+                .data(null)
+                .code(502)
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(response);
+    }
+
     @ExceptionHandler(ThreadBusyException.class)
     public ResponseEntity<?> handleThreadBusy(ThreadBusyException ex) {
         log.warn("[GlobalExceptionHandler] Thread busy: {} - queue position: {}", ex.getThreadId(), ex.getQueuePosition());

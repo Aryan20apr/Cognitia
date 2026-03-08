@@ -46,6 +46,10 @@ public class AgentTimelineContext {
         return sink.asFlux();
     }
 
+    public boolean isCancelled() {
+        return sink.currentSubscriberCount() == 0;
+    }
+
     public void complete() {
         sink.tryEmitComplete();
     }
