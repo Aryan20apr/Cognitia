@@ -285,11 +285,14 @@ public class QuotaServiceImpl implements QuotaService {
 
         TenantQuota saved = tenantQuotaRepository.save(quota);
 
-        // Mark payment as fulfilled after successful plan assignment (prevents replay)
         if (paymentOrder != null) {
+            if (currentPlan != null) {
+                paymentOrder.setPreviousPlanId(currentPlan.getId());
+            }
             markPaymentFulfilled(paymentOrder);
-            log.info("Payment order {} marked as fulfilled for tenant {} plan upgrade.", 
-                    paymentOrder.getOrderRef(), tenantId);
+            log.info("Payment order {} marked as fulfilled for tenant {} plan upgrade. Previous plan: {}",
+                    paymentOrder.getOrderRef(), tenantId,
+                    currentPlan != null ? currentPlan.getName() : "none");
         }
 
         return mapper.toDto(saved);
