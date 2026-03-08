@@ -42,46 +42,46 @@ public class OtpService {
     private final StringRedisTemplate stringRedisTemplate;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public String generateAndStore(String email, String purpose) {
+    public String generateAndStore(String email) {
         String otp = generateOtp();
-        String key = otpKey(purpose, email);
+        String key = otpKey(email);
         stringRedisTemplate.opsForValue().set(key, otp, OTP_TTL);
-        log.info("OTP stored for {} with purpose {}", email, purpose);
+        log.info("OTP stored for {}", email);
         return otp;
     }
 
-    public boolean verify(String email, String purpose, String otp) {
-        if (!checkRateLimit(email, purpose)) {
-            log.warn("Rate limit exceeded for {} with purpose {}", email, purpose);
+    public boolean verify(String email, String otp) {
+        if (!checkRateLimit(email)) {
+            log.warn("Rate limit exceeded for {}", email);
             return false;
         }
 
-        String key = otpKey(purpose, email);
+        String key = otpKey(email);
         String storedOtp = stringRedisTemplate.opsForValue().getAndDelete(key);
 
         if (storedOtp != null && storedOtp.equals(otp)) {
-            deleteRateLimitCounter(email, purpose);
-            log.info("OTP verified successfully for {} with purpose {}", email, purpose);
+            deleteRateLimitCounter(email);
+            log.info("OTP verified successfully for {}", email);
             return true;
         }
 
-        incrementAttempts(email, purpose);
-        log.warn("OTP verification failed for {} with purpose {}", email, purpose);
+        incrementAttempts(email);
+        log.warn("OTP verification failed for {}", email);
         return false;
     }
 
-    public boolean isRateLimited(String email, String purpose) {
-        return !checkRateLimit(email, purpose);
+    public boolean isRateLimited(String email) {
+        return !checkRateLimit(email);
     }
 
-    private boolean checkRateLimit(String email, String purpose) {
-        String counterKey = rateLimitKey(purpose, email);
+    private boolean checkRateLimit(String email) {
+        String counterKey = rateLimitKey(email);
         String attemptsStr = stringRedisTemplate.opsForValue().get(counterKey);
         return attemptsStr == null || Integer.parseInt(attemptsStr) < MAX_ATTEMPTS;
     }
 
-    private void incrementAttempts(String email, String purpose) {
-        String counterKey = rateLimitKey(purpose, email);
+    private void incrementAttempts(String email) {
+        String counterKey = rateLimitKey(email);
         long ttlSeconds = RATE_LIMIT_WINDOW.toSeconds();
         stringRedisTemplate.execute(
                 INCREMENT_WITH_EXPIRE_SCRIPT,
@@ -90,8 +90,8 @@ public class OtpService {
         );
     }
 
-    private void deleteRateLimitCounter(String email, String purpose) {
-        stringRedisTemplate.delete(rateLimitKey(purpose, email));
+    private void deleteRateLimitCounter(String email) {
+        stringRedisTemplate.delete(rateLimitKey(email));
     }
 
     private String generateOtp() {
@@ -119,11 +119,11 @@ public class OtpService {
         return email;
     }
 
-    private String otpKey(String purpose, String email) {
-        return KEY_PREFIX_OTP + purpose + ":" + email;
+    private String otpKey(String email) {
+        return KEY_PREFIX_OTP + email;
     }
 
-    private String rateLimitKey(String purpose, String email) {
-        return KEY_PREFIX_RATE_LIMIT + purpose + ":" + email;
+    private String rateLimitKey(String email) {
+        return KEY_PREFIX_RATE_LIMIT + email;
     }
 }

@@ -13,9 +13,6 @@ public class Constants {
     public static final String SAME_SITE_LAX = "Lax";
     public static final String SAME_SITE_STRICT = "Strict";
 
-    public static final String OTP_PURPOSE_SIGNUP = "SIGNUP";
-    public static final String OTP_PURPOSE_RESET = "RESET";
-
     public static final String TEMPLATE_OTP = "otp";
     public static final String TEMPLATE_QUOTA_WARNING = "quota-warning";
     public static final String TEMPLATE_PAYMENT_SUCCESS = "payment-success";

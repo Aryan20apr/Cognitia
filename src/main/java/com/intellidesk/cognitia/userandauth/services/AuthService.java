@@ -2,9 +2,9 @@ package com.intellidesk.cognitia.userandauth.services;
 
 public interface AuthService {
 
-    void verifySignupOtp(String email, String otp);
+    Boolean verifyOtp(String email, String otp);
 
-    void resendOtp(String email, String purpose);
+    void resendOtp(String email);
 
     void activateAccount(String token);
 

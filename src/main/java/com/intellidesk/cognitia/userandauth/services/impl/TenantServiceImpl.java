@@ -135,7 +135,7 @@ public class TenantServiceImpl implements TenantService {
 
     private void sendSignupOtp(String email) {
         try {
-            String otp = otpService.generateAndStore(email, Constants.OTP_PURPOSE_SIGNUP);
+            String otp = otpService.generateAndStore(email);
             emailService.sendHtml(email, "Verify your Cognitia account",
                     Constants.TEMPLATE_OTP, Map.of("otp", otp, "subject", "Verify your Cognitia account"));
             log.info("[TenantServiceImpl] Signup OTP sent to {}", email);

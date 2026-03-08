@@ -6,7 +6,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.notification.EmailService;
 import com.intellidesk.cognitia.notification.OtpService;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
@@ -29,30 +28,34 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
 
+    private static final String OTP_EMAIL_SUBJECT = "Your Cognitia verification code";
+    private static final String TEMPLATE_OTP = "otp";
+
     @Override
     @Transactional
-    public void verifySignupOtp(String email, String otp) {
-        boolean verified = otpService.verify(email, Constants.OTP_PURPOSE_SIGNUP, otp);
-        if (!verified) {
-            throw new ApiException("Invalid or expired OTP");
-        }
+    public Boolean verifyOtp(String email, String otp) {
+        boolean verified = otpService.verify(email, otp);
 
+        if (verified) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ApiException("User not found"));
         user.setEmailVerified(true);
         userRepository.save(user);
+        return true;
+    } else {
+        return false;
     }
 
     @Override
-    public void resendOtp(String email, String purpose) {
+    public void resendOtp(String email) {
         var userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
             return;
         }
 
-        String otp = otpService.generateAndStore(email, purpose);
-        emailService.sendHtml(email, "Your Cognitia verification code",
-                Constants.TEMPLATE_OTP, Map.of("otp", otp, "subject", "Your Cognitia verification code"));
+        String otp = otpService.generateAndStore(email);
+        emailService.sendHtml(email, OTP_EMAIL_SUBJECT,
+                TEMPLATE_OTP, Map.of("otp", otp, "subject", OTP_EMAIL_SUBJECT));
     }
 
     @Override
@@ -73,17 +76,16 @@ public class AuthServiceImpl implements AuthService {
     public void forgotPassword(String email) {
         var userOpt = userRepository.findByEmail(email);
         if (userOpt.isPresent()) {
-            String otp = otpService.generateAndStore(email, Constants.OTP_PURPOSE_RESET);
+            String otp = otpService.generateAndStore(email);
             emailService.sendHtml(email, "Reset your Cognitia password",
-                    Constants.TEMPLATE_OTP, Map.of("otp", otp, "subject", "Reset your Cognitia password"));
+                    TEMPLATE_OTP, Map.of("otp", otp, "subject", "Reset your Cognitia password"));
         }
-        // Silent return for both cases to prevent email enumeration
     }
 
     @Override
     @Transactional
     public void resetPassword(String email, String otp, String newPassword) {
-        boolean verified = otpService.verify(email, Constants.OTP_PURPOSE_RESET, otp);
+        boolean verified = otpService.verify(email, otp);
         if (!verified) {
             throw new ApiException("Invalid or expired OTP");
         }

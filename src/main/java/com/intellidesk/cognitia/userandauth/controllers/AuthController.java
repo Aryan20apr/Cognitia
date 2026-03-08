@@ -21,16 +21,22 @@ import org.springframework.web.bind.annotation.RestController;
 import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.notification.OtpService;
+import com.intellidesk.cognitia.userandauth.models.dtos.ForgotPasswordRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.LoginRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.LoginResponseDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.ResendOtpRequestDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.ResetPasswordRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.TokenPair;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserDetailsDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.VerifyOtpRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
 import com.intellidesk.cognitia.userandauth.security.JwtTokenProvider;
 import com.intellidesk.cognitia.userandauth.security.RefreshTokenService;
 import com.intellidesk.cognitia.userandauth.services.AuthService;
 import com.intellidesk.cognitia.utils.Utils;
+
+import jakarta.validation.Valid;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -151,43 +157,32 @@ public class AuthController {
                 .body(apiResponse);
     }
 
-    @Operation(summary = "Verify signup OTP", description = "Verify email address using OTP sent during signup")
-    @PostMapping("/verify-signup-otp")
-    public ResponseEntity<?> verifySignupOtp(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        String otp = body.get("otp");
-
-        if (email == null || otp == null) {
-            return ResponseEntity.badRequest()
-                    .body(new ApiResponse<>("Email and OTP are required", false, null));
-        }
-
-        if (otpService.isRateLimited(email, Constants.OTP_PURPOSE_SIGNUP)) {
+    @Operation(summary = "Verify OTP", description = "Verify email address using OTP")
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody VerifyOtpRequestDTO request) {
+        if (otpService.isRateLimited(request.getEmail())) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(new ApiResponse<>("Too many attempts. Please try again later.", false, null));
         }
 
-        authService.verifySignupOtp(email, otp);
-        return ResponseEntity.ok(new ApiResponse<>("Email verified successfully", true, null));
+        Boolean verified = authService.verifyOtp(request.getEmail(), request.getOtp());
+        if (verified) {
+            return ResponseEntity.ok(new ApiResponse<>("Email verified successfully", true, null));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>("Invalid or expired OTP", false, null));
+        }
     }
 
     @Operation(summary = "Resend OTP", description = "Resend verification OTP to email")
     @PostMapping("/resend-otp")
-    public ResponseEntity<?> resendOtp(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        String purpose = body.getOrDefault("purpose", Constants.OTP_PURPOSE_SIGNUP);
-
-        if (email == null) {
-            return ResponseEntity.badRequest()
-                    .body(new ApiResponse<>("Email is required", false, null));
-        }
-
-        if (otpService.isRateLimited(email, purpose)) {
+    public ResponseEntity<?> resendOtp(@Valid @RequestBody ResendOtpRequestDTO request) {
+        if (otpService.isRateLimited(request.getEmail())) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(new ApiResponse<>("Too many attempts. Please try again later.", false, null));
         }
 
-        authService.resendOtp(email, purpose);
+        authService.resendOtp(request.getEmail());
         return ResponseEntity.ok(new ApiResponse<>("If the email exists, an OTP has been sent.", true, null));
     }
 
@@ -200,36 +195,20 @@ public class AuthController {
 
     @Operation(summary = "Forgot password", description = "Send password reset OTP to email")
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-
-        if (email == null) {
-            return ResponseEntity.badRequest()
-                    .body(new ApiResponse<>("Email is required", false, null));
-        }
-
-        authService.forgotPassword(email);
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO request) {
+        authService.forgotPassword(request.getEmail());
         return ResponseEntity.ok(new ApiResponse<>("If the email exists, a reset code has been sent.", true, null));
     }
 
     @Operation(summary = "Reset password", description = "Reset password using OTP")
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        String otp = body.get("otp");
-        String newPassword = body.get("newPassword");
-
-        if (email == null || otp == null || newPassword == null) {
-            return ResponseEntity.badRequest()
-                    .body(new ApiResponse<>("Email, OTP, and new password are required", false, null));
-        }
-
-        if (otpService.isRateLimited(email, Constants.OTP_PURPOSE_RESET)) {
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO request) {
+        if (otpService.isRateLimited(request.getEmail())) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(new ApiResponse<>("Too many attempts. Please try again later.", false, null));
         }
 
-        authService.resetPassword(email, otp, newPassword);
+        authService.resetPassword(request.getEmail(), request.getOtp(), request.getNewPassword());
         return ResponseEntity.ok(new ApiResponse<>("Password reset successfully", true, null));
     }
 
