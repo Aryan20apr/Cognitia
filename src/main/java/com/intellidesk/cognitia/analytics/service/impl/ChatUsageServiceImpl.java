@@ -67,11 +67,16 @@ public class ChatUsageServiceImpl implements ChatUsageService {
         }
 
         
-        Specification<ChatUsage> spec = Specification
-                .where(userUUID != null ? ChatUsageSpecification.hasUserId(userUUID) : null)
-                .and(threadUUID != null ? ChatUsageSpecification.hasThreadId(threadUUID) : null);
+        Specification<ChatUsage> spec = Specification.where(
+                (root, query, cb) -> cb.conjunction());
 
-        
+        if (userUUID != null) {
+            spec = spec.and(ChatUsageSpecification.hasUserId(userUUID));
+        }
+        if (threadUUID != null) {
+            spec = spec.and(ChatUsageSpecification.hasThreadId(threadUUID));
+        }
+
         Page<ChatUsage> chatUsagesPage = chatUsageRepository.findAll(spec, pageable);
 
         
