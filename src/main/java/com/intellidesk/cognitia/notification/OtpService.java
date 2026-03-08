@@ -3,6 +3,7 @@ package com.intellidesk.cognitia.notification;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -18,8 +19,13 @@ public class OtpService {
 
     private static final int OTP_LENGTH = 6;
     private static final Duration OTP_TTL = Duration.ofMinutes(5);
+    private static final Duration ACTIVATION_TOKEN_TTL = Duration.ofHours(24);
     private static final Duration RATE_LIMIT_WINDOW = Duration.ofMinutes(15);
     private static final int MAX_ATTEMPTS = 5;
+
+    private static final String KEY_PREFIX_OTP = "otp:";
+    private static final String KEY_PREFIX_RATE_LIMIT = "otp-attempts:";
+    private static final String KEY_PREFIX_ACTIVATION = "activation:";
 
     private static final DefaultRedisScript<Long> INCREMENT_WITH_EXPIRE_SCRIPT;
 
@@ -94,11 +100,30 @@ public class OtpService {
         return String.format("%0" + OTP_LENGTH + "d", otp);
     }
 
+    public String generateActivationToken(String email) {
+        String token = UUID.randomUUID().toString();
+        String key = KEY_PREFIX_ACTIVATION + token;
+        stringRedisTemplate.opsForValue().set(key, email, ACTIVATION_TOKEN_TTL);
+        log.info("Activation token stored for {}", email);
+        return token;
+    }
+
+    public String verifyActivationToken(String token) {
+        String key = KEY_PREFIX_ACTIVATION + token;
+        String email = stringRedisTemplate.opsForValue().getAndDelete(key);
+        if (email != null) {
+            log.info("Activation token verified for {}", email);
+        } else {
+            log.warn("Invalid or expired activation token");
+        }
+        return email;
+    }
+
     private String otpKey(String purpose, String email) {
-        return "otp:" + purpose + ":" + email;
+        return KEY_PREFIX_OTP + purpose + ":" + email;
     }
 
     private String rateLimitKey(String purpose, String email) {
-        return "otp-attempts:" + purpose + ":" + email;
+        return KEY_PREFIX_RATE_LIMIT + purpose + ":" + email;
     }
 }
