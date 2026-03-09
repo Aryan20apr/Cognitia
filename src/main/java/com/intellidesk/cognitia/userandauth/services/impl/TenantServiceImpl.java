@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.models.entities.enums.RoleEnum;
 import com.intellidesk.cognitia.userandauth.repository.TenantRepository;
+import com.intellidesk.cognitia.userandauth.repository.UserRepository;
 import com.intellidesk.cognitia.userandauth.services.TenantService;
 import com.intellidesk.cognitia.userandauth.services.UserService;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
@@ -38,11 +40,13 @@ import lombok.extern.slf4j.Slf4j;
 public class TenantServiceImpl implements TenantService {
 
     private final TenantRepository tenantRepository;
+    private final UserRepository userRepository;
     private final UserService userService;
     private final QuotaService quotaService;
     private final PlanCatalogService planCatalogService;
     private final OtpService otpService;
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public Boolean checkIfExists(String id) {
@@ -51,9 +55,13 @@ public class TenantServiceImpl implements TenantService {
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public TenantDTO createTenant(TenantDTO tenantDTO){
+    public TenantDTO createTenant(TenantDTO tenantDTO) {
+        log.info("[TenantServiceImpl] [createTenant] creating tenant with info: {}", tenantDTO);
 
-    log.info("[TenantServiceImpl] [createTenant] creating tenant with info: {}", tenantDTO);
+        Optional<User> existingUser = userRepository.findByEmail(tenantDTO.getAdminEmail());
+        if (existingUser.isPresent() && !Boolean.TRUE.equals(existingUser.get().getEmailVerified())) {
+            return handleReregistration(existingUser.get(), tenantDTO);
+        }
 
         Tenant tenant = Tenant.builder()
                         .name(tenantDTO.getName())
@@ -131,6 +139,26 @@ public class TenantServiceImpl implements TenantService {
     public List<Tenant> getAllCompanies() {
 
         return tenantRepository.findAll();
+    }
+
+    private TenantDTO handleReregistration(User user, TenantDTO tenantDTO) {
+        Tenant tenant = tenantRepository.findById(user.getTenantId())
+                .orElseThrow(() -> new ApiException("Tenant not found"));
+        tenant.setName(tenantDTO.getName());
+        tenant.setAbout(tenantDTO.getAbout());
+        tenant.setDomain(tenantDTO.getDomain());
+        tenant.setContactEmail(tenantDTO.getContactEmail());
+        tenantRepository.save(tenant);
+
+        user.setName(tenantDTO.getAdminName());
+        user.setPassword(passwordEncoder.encode(tenantDTO.getAdminPassword()));
+        user.setPhoneNumber(tenantDTO.getPhoneNumber());
+        userRepository.save(user);
+
+        assignDefaultPlan(tenant.getId());
+        sendSignupOtp(tenantDTO.getAdminEmail());
+        log.info("[TenantServiceImpl] Re-registration completed for unverified email {}", tenantDTO.getAdminEmail());
+        return mapToDTO(tenant);
     }
 
     private void sendSignupOtp(String email) {

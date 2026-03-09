@@ -37,13 +37,14 @@ public class AuthServiceImpl implements AuthService {
         boolean verified = otpService.verify(email, otp);
 
         if (verified) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ApiException("User not found"));
-        user.setEmailVerified(true);
-        userRepository.save(user);
-        return true;
-    } else {
-        return false;
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new ApiException("User not found"));
+            user.setEmailVerified(true);
+            userRepository.save(user);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     @Override

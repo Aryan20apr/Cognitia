@@ -57,9 +57,10 @@ public class OtpService {
         }
 
         String key = otpKey(email);
-        String storedOtp = stringRedisTemplate.opsForValue().getAndDelete(key);
+        String storedOtp = stringRedisTemplate.opsForValue().get(key);
 
         if (storedOtp != null && storedOtp.equals(otp)) {
+            stringRedisTemplate.delete(key);
             deleteRateLimitCounter(email);
             log.info("OTP verified successfully for {}", email);
             return true;
