@@ -5,13 +5,19 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
+import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.analytics.models.dto.AssignPlanRequest;
 import com.intellidesk.cognitia.analytics.models.dto.PlanDTO;
 import com.intellidesk.cognitia.analytics.service.PlanCatalogService;
 import com.intellidesk.cognitia.analytics.service.QuotaService;
+import com.intellidesk.cognitia.notification.EmailService;
+import com.intellidesk.cognitia.notification.OtpService;
 import com.intellidesk.cognitia.userandauth.models.dtos.RoleCreationDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.TenantDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserCreationDTO;
@@ -20,6 +26,7 @@ import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.models.entities.enums.RoleEnum;
 import com.intellidesk.cognitia.userandauth.repository.TenantRepository;
+import com.intellidesk.cognitia.userandauth.repository.UserRepository;
 import com.intellidesk.cognitia.userandauth.services.TenantService;
 import com.intellidesk.cognitia.userandauth.services.UserService;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
@@ -33,9 +40,13 @@ import lombok.extern.slf4j.Slf4j;
 public class TenantServiceImpl implements TenantService {
 
     private final TenantRepository tenantRepository;
+    private final UserRepository userRepository;
     private final UserService userService;
     private final QuotaService quotaService;
     private final PlanCatalogService planCatalogService;
+    private final OtpService otpService;
+    private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public Boolean checkIfExists(String id) {
@@ -44,9 +55,13 @@ public class TenantServiceImpl implements TenantService {
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public TenantDTO createTenant(TenantDTO tenantDTO){
+    public TenantDTO createTenant(TenantDTO tenantDTO) {
+        log.info("[TenantServiceImpl] [createTenant] creating tenant with info: {}", tenantDTO);
 
-    log.info("[TenantServiceImpl] [createTenant] creating tenant with info: {}", tenantDTO);
+        Optional<User> existingUser = userRepository.findByEmail(tenantDTO.getAdminEmail());
+        if (existingUser.isPresent() && !Boolean.TRUE.equals(existingUser.get().getEmailVerified())) {
+            return handleReregistration(existingUser.get(), tenantDTO);
+        }
 
         Tenant tenant = Tenant.builder()
                         .name(tenantDTO.getName())
@@ -75,7 +90,9 @@ public class TenantServiceImpl implements TenantService {
 
 
         assignDefaultPlan(newTenant.getId());
-        
+
+        sendSignupOtp(tenantDTO.getAdminEmail());
+
         return mapToDTO(newTenant);
     }
 
@@ -122,6 +139,37 @@ public class TenantServiceImpl implements TenantService {
     public List<Tenant> getAllCompanies() {
 
         return tenantRepository.findAll();
+    }
+
+    private TenantDTO handleReregistration(User user, TenantDTO tenantDTO) {
+        Tenant tenant = tenantRepository.findById(user.getTenantId())
+                .orElseThrow(() -> new ApiException("Tenant not found"));
+        tenant.setName(tenantDTO.getName());
+        tenant.setAbout(tenantDTO.getAbout());
+        tenant.setDomain(tenantDTO.getDomain());
+        tenant.setContactEmail(tenantDTO.getContactEmail());
+        tenantRepository.save(tenant);
+
+        user.setName(tenantDTO.getAdminName());
+        user.setPassword(passwordEncoder.encode(tenantDTO.getAdminPassword()));
+        user.setPhoneNumber(tenantDTO.getPhoneNumber());
+        userRepository.save(user);
+
+        assignDefaultPlan(tenant.getId());
+        sendSignupOtp(tenantDTO.getAdminEmail());
+        log.info("[TenantServiceImpl] Re-registration completed for unverified email {}", tenantDTO.getAdminEmail());
+        return mapToDTO(tenant);
+    }
+
+    private void sendSignupOtp(String email) {
+        try {
+            String otp = otpService.generateAndStore(email);
+            emailService.sendHtml(email, "Verify your Cognitia account",
+                    Constants.TEMPLATE_OTP, Map.of("otp", otp, "subject", "Verify your Cognitia account"));
+            log.info("[TenantServiceImpl] Signup OTP sent to {}", email);
+        } catch (Exception e) {
+            log.error("[TenantServiceImpl] Failed to send signup OTP to {}: {}", email, e.getMessage());
+        }
     }
 
     private TenantDTO mapToDTO(Tenant tenant){

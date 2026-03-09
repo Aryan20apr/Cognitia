@@ -25,6 +25,7 @@ public class Plan {
     private String description;
 
     @OneToMany(mappedBy = "planId")
+    @ToString.Exclude
     private Set<TenantQuota> tenantQuotas;
 
     private Long includedPromptTokens;

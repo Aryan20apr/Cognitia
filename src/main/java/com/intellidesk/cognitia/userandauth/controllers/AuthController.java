@@ -5,27 +5,38 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
+import com.intellidesk.cognitia.notification.OtpService;
+import com.intellidesk.cognitia.userandauth.models.dtos.ForgotPasswordRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.LoginRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.LoginResponseDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.ResendOtpRequestDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.ResetPasswordRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.TokenPair;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserDetailsDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.VerifyOtpRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.security.CustomUserDetails;
 import com.intellidesk.cognitia.userandauth.security.JwtTokenProvider;
 import com.intellidesk.cognitia.userandauth.security.RefreshTokenService;
+import com.intellidesk.cognitia.userandauth.services.AuthService;
 import com.intellidesk.cognitia.utils.Utils;
+
+import jakarta.validation.Valid;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -43,9 +54,14 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "Authentication", description = "Authentication management APIs")
 public class AuthController {
 
+    private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+    private static final int REFRESH_COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
     private final AuthenticationManager authManager;
     private final JwtTokenProvider jwtProvider;
     private final RefreshTokenService refreshService;
+    private final AuthService authService;
+    private final OtpService otpService;
     
     @Value("${cookie.secure:true}")
     private boolean cookieSecure;
@@ -70,6 +86,11 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequestDTO req) {
         Authentication auth = authManager.authenticate(new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
         User user = ((CustomUserDetails) auth.getPrincipal()).getUser();
+
+        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse<>("Please verify your email before logging in", false, null));
+        }
 
         String access = jwtProvider.createAccessToken(user);
         String rawRefresh = refreshService.createRefreshToken(user, req.getDeviceId(), req.getIp(), req.getUserAgent());
@@ -126,7 +147,6 @@ public class AuthController {
             log.warn("[Logout] No refresh token found in cookie or body for logout.");
         }
         
-        // Clear the refresh token cookie
         ResponseCookie cookie = createRefreshCookie("", 0);
         log.info("[Logout] Refresh token cookie cleared.");
 
@@ -137,24 +157,73 @@ public class AuthController {
                 .body(apiResponse);
     }
 
+    @Operation(summary = "Verify OTP", description = "Verify email address using OTP")
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody VerifyOtpRequestDTO request) {
+        if (otpService.isRateLimited(request.getEmail())) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(new ApiResponse<>("Too many attempts. Please try again later.", false, null));
+        }
 
+        Boolean verified = authService.verifyOtp(request.getEmail(), request.getOtp());
+        if (verified) {
+            return ResponseEntity.ok(new ApiResponse<>("Email verified successfully", true, null));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>("Invalid or expired OTP", false, null));
+        }
+    }
+
+    @Operation(summary = "Resend OTP", description = "Resend verification OTP to email")
+    @PostMapping("/resend-otp")
+    public ResponseEntity<?> resendOtp(@Valid @RequestBody ResendOtpRequestDTO request) {
+        if (otpService.isRateLimited(request.getEmail())) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(new ApiResponse<>("Too many attempts. Please try again later.", false, null));
+        }
+
+        authService.resendOtp(request.getEmail());
+        return ResponseEntity.ok(new ApiResponse<>("If the email exists, an OTP has been sent.", true, null));
+    }
+
+    @Operation(summary = "Activate account via link", description = "Activate account using activation token from email")
+    @GetMapping("/activate")
+    public ResponseEntity<?> activateAccount(@RequestParam String token) {
+        authService.activateAccount(token);
+        return ResponseEntity.ok(new ApiResponse<>("Account activated successfully", true, null));
+    }
+
+    @Operation(summary = "Forgot password", description = "Send password reset OTP to email")
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO request) {
+        authService.forgotPassword(request.getEmail());
+        return ResponseEntity.ok(new ApiResponse<>("If the email exists, a reset code has been sent.", true, null));
+    }
+
+    @Operation(summary = "Reset password", description = "Reset password using OTP")
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO request) {
+        if (otpService.isRateLimited(request.getEmail())) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(new ApiResponse<>("Too many attempts. Please try again later.", false, null));
+        }
+
+        authService.resetPassword(request.getEmail(), request.getOtp(), request.getNewPassword());
+        return ResponseEntity.ok(new ApiResponse<>("Password reset successfully", true, null));
+    }
 
     private ResponseCookie createRefreshCookie(String refreshToken, int maxAge) {
-        // SameSite=None requires Secure=true
         boolean secure = cookieSecure;
         if ("None".equalsIgnoreCase(cookieSameSite) && !cookieSecure) {
             log.warn("[createRefreshCookie] SameSite=None requires Secure=true. Setting Secure=true.");
             secure = true;
         }
         
-        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from("refreshToken", refreshToken)
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(REFRESH_TOKEN_COOKIE, refreshToken)
                 .httpOnly(true)
                 .secure(secure)
                 .path("/auth")
                 .maxAge(maxAge);
-        
-        // Set SameSite attribute based on configuration
-        // Using string value as Spring may not expose the enum directly
 
         switch (cookieSameSite) {
             case Constants.SAME_SITE_NONE -> builder.sameSite(Constants.SAME_SITE_NONE);
@@ -169,25 +238,19 @@ public class AuthController {
     }
     
     private ResponseCookie createRefreshCookie(String refreshToken) {
-        return createRefreshCookie(refreshToken, 7 * 24 * 60 * 60); // 7 days in seconds
+        return createRefreshCookie(refreshToken, REFRESH_COOKIE_MAX_AGE_SECONDS);
     }
 
     private String readRefreshFromCookieOrBody(HttpServletRequest servletRequest){
-        // First try to read from cookie
         Cookie[] cookies = servletRequest.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
                 log.info("[readRefreshFromCookieOrBody] Cookie name: {}, Cookie value: {}", cookie.getName(), cookie.getValue());
-                if ("refreshToken".equals(cookie.getName())) {
+                if (REFRESH_TOKEN_COOKIE.equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }
         }
-        
-        // If not found in cookie, try to read from request body
-        // This would require parsing the request body, which is more complex
-        // For now, return null if not found in cookies
         return null;
     }
 }
-

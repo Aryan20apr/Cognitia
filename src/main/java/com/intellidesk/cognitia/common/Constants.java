@@ -12,4 +12,15 @@ public class Constants {
     public static final String SAME_SITE_NONE = "None";
     public static final String SAME_SITE_LAX = "Lax";
     public static final String SAME_SITE_STRICT = "Strict";
+
+    public static final String TEMPLATE_OTP = "otp";
+    public static final String TEMPLATE_QUOTA_WARNING = "quota-warning";
+    public static final String TEMPLATE_PAYMENT_SUCCESS = "payment-success";
+    public static final String TEMPLATE_PAYMENT_FAILED = "payment-failed";
+    public static final String TEMPLATE_REFUND_PROCESSED = "refund-processed";
+
+    public static final String DATE_FORMAT_DISPLAY = "MMM d, yyyy";
+    public static final String CURRENCY_INR = "INR";
+    public static final String CURRENCY_SYMBOL_INR = "\u20B9";
+    public static final String FALLBACK_NA = "N/A";
 }

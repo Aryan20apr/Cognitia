@@ -22,6 +22,19 @@ spring:
   cache:
     type: redis
 
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  thymeleaf:
+    prefix: classpath:/templates/
+    check-template-location: false
+
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/cognitia}
     username: ${DATABASE_USERNAME:cognitia}

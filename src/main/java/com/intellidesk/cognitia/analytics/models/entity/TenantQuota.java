@@ -58,6 +58,7 @@ public class TenantQuota extends TenantAwareEntity {
     private UUID id;
 
     @ManyToOne
+    @ToString.Exclude
     @JoinColumn(name = "plan_id", referencedColumnName = "id")
     private Plan planId;
 
@@ -87,6 +88,7 @@ public class TenantQuota extends TenantAwareEntity {
     private Integer maxResources;
 
     @OneToMany(mappedBy = "tenantQuota")
+    @ToString.Exclude
     private Set<UserQuota> userQuotas;
 
     @Column(name = "max_users")

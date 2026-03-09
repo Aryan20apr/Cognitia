@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Payment Failed</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;padding:40px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <tr>
+                        <td style="background-color:#dc2626;padding:32px 40px;text-align:center;">
+                            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:600;">Cognitia</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:40px;">
+                            <h2 style="color:#1a1a2e;margin:0 0 16px;font-size:20px;font-weight:600;">Payment Failed</h2>
+                            <p style="color:#51545e;font-size:15px;line-height:1.6;margin:0 0 24px;">
+                                Unfortunately, your payment could not be processed. Please try again or use a different payment method.
+                            </p>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;border-radius:6px;margin:0 0 24px;">
+                                <tr>
+                                    <td style="padding:20px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="color:#51545e;font-size:14px;padding:6px 0;">Plan</td>
+                                                <td style="color:#1a1a2e;font-size:14px;font-weight:600;text-align:right;padding:6px 0;" th:text="${planName}">Pro Plan</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="color:#51545e;font-size:14px;padding:6px 0;">Amount</td>
+                                                <td style="color:#1a1a2e;font-size:14px;font-weight:600;text-align:right;padding:6px 0;" th:text="${amount}">&#8377;999</td>
+                                            </tr>
+                                            <tr th:if="${reason}">
+                                                <td style="color:#51545e;font-size:14px;padding:6px 0;">Reason</td>
+                                                <td style="color:#dc2626;font-size:14px;font-weight:600;text-align:right;padding:6px 0;" th:text="${reason}">Insufficient funds</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div th:if="${retryLink}" style="text-align:center;margin:0 0 24px;">
+                                <a th:href="${retryLink}" style="display:inline-block;background-color:#4f46e5;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:6px;">
+                                    Retry Payment
+                                </a>
+                            </div>
+                            <p style="color:#51545e;font-size:14px;line-height:1.6;margin:0;">
+                                If you continue to experience issues, please contact our support team.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background-color:#f4f4f7;padding:24px 40px;text-align:center;">
+                            <p style="color:#9a9ea6;font-size:13px;margin:0;">&copy; Cognitia. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

@@ -56,6 +56,9 @@ public class User extends TenantAwareEntity {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = false;
+
     @OneToMany(mappedBy = "user",cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private Set<RefreshToken> refreshTokens = new HashSet<>();
 

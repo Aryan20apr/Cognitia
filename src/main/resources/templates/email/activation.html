@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Activate Your Account</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;padding:40px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                    <tr>
+                        <td style="background-color:#4f46e5;padding:32px 40px;text-align:center;">
+                            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:600;">Cognitia</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:40px;">
+                            <h2 style="color:#1a1a2e;margin:0 0 16px;font-size:20px;font-weight:600;">Activate Your Account</h2>
+                            <p style="color:#51545e;font-size:15px;line-height:1.6;margin:0 0 24px;">
+                                Welcome to Cognitia! Click the button below to activate your account. This link expires in 24 hours.
+                            </p>
+                            <div style="text-align:center;margin:0 0 24px;">
+                                <a th:href="${activationLink}" style="display:inline-block;background-color:#4f46e5;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:14px 32px;border-radius:6px;">
+                                    Activate Account
+                                </a>
+                            </div>
+                            <p style="color:#51545e;font-size:14px;line-height:1.6;margin:0 0 12px;">
+                                If the button doesn't work, copy and paste this link into your browser:
+                            </p>
+                            <p style="color:#4f46e5;font-size:13px;word-break:break-all;margin:0 0 24px;">
+                                <a th:href="${activationLink}" th:text="${activationLink}" style="color:#4f46e5;">Link</a>
+                            </p>
+                            <p style="color:#51545e;font-size:14px;line-height:1.6;margin:0;">
+                                If you didn't create an account, you can safely ignore this email.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background-color:#f4f4f7;padding:24px 40px;text-align:center;">
+                            <p style="color:#9a9ea6;font-size:13px;margin:0;">&copy; Cognitia. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
