@@ -19,10 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.intellidesk.cognitia.chat.models.dtos.ChatThreadDTO;
 import com.intellidesk.cognitia.chat.models.dtos.CustomChatResponse;
+import com.intellidesk.cognitia.chat.models.dtos.ToolDescriptor;
 import com.intellidesk.cognitia.chat.models.dtos.UserMessageDTO;
 import com.intellidesk.cognitia.chat.models.entities.ChatThread;
 import com.intellidesk.cognitia.chat.service.ChatService;
 import com.intellidesk.cognitia.chat.service.ThreadLockService.ThreadLockStatus;
+import com.intellidesk.cognitia.chat.service.tools.ToolRegistryService;
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.utils.exceptionHandling.DuplicateRequestAlreadyProcessedException;
 import com.intellidesk.cognitia.utils.exceptionHandling.DuplicateRequestInProgressException;
@@ -42,6 +44,14 @@ import reactor.core.publisher.Flux;
 public class ChatController {
 
     private final ChatService chatService;
+    private final ToolRegistryService toolRegistryService;
+
+    @Operation(summary = "Get available tools for the chat")
+    @GetMapping("/tools")
+    public ResponseEntity<ApiResponse<List<ToolDescriptor>>> getAvailableTools() {
+        List<ToolDescriptor> tools = toolRegistryService.getUserSelectableTools();
+        return ResponseEntity.ok().body(new ApiResponse<>("Tools fetched successfully", true, tools));
+    }
 
     @Operation(summary = "Create a new chat thread")
     @PostMapping("/threads")
