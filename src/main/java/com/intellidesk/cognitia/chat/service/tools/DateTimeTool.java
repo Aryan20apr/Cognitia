@@ -20,6 +20,12 @@ public class DateTimeTool implements TimelineAwareTool {
     }
 
     @Override
+    public String toolId() { return "date-time"; }
+
+    @Override
+    public boolean userSelectable() { return false; }
+
+    @Override
     public String timelineDescription(){
         return "Getting current date and time";
     }

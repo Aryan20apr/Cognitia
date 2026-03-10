@@ -143,6 +143,15 @@ public class WebExtractTool implements TimelineAwareTool{
     }
 
     @Override
+    public String toolId() { return "web-extract"; }
+
+    @Override
+    public String displayName() { return "Web Extract"; }
+
+    @Override
+    public String category() { return "search"; }
+
+    @Override
     public String timelineDescription() {
         return "Reading web page";
     }
