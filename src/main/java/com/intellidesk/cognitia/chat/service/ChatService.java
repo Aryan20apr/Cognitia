@@ -30,6 +30,7 @@ import com.intellidesk.cognitia.chat.repository.ChatMessageRepository;
 import com.intellidesk.cognitia.chat.repository.ChatThreadRepository;
 import com.intellidesk.cognitia.chat.service.ThreadLockService.ThreadLockStatus;
 import com.intellidesk.cognitia.chat.service.tools.TimelineToolCallbackProvider;
+import com.intellidesk.cognitia.chat.service.tools.ToolRegistryService;
 import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
@@ -53,6 +54,7 @@ public class ChatService {
     private final ThreadLockService threadLockService;
     private final ThreadTitleGenerationService titleGenerationService;
     private final TimelineToolCallbackProvider timelineToolCallbackProvider;
+    private final ToolRegistryService toolRegistryService;
     private final long streamTimeoutSeconds;
 
     public ChatService(ChatClient chatClient,
@@ -62,6 +64,7 @@ public class ChatService {
                        ThreadLockService threadLockService,
                        ThreadTitleGenerationService titleGenerationService,
                        TimelineToolCallbackProvider timelineToolCallbackProvider,
+                       ToolRegistryService toolRegistryService,
                        @org.springframework.beans.factory.annotation.Value("${cognitia.chat.stream.timeout-seconds:180}") long streamTimeoutSeconds) {
         this.chatClient = chatClient;
         this.threadRepository = threadRepository;
@@ -70,6 +73,7 @@ public class ChatService {
         this.threadLockService = threadLockService;
         this.titleGenerationService = titleGenerationService;
         this.timelineToolCallbackProvider = timelineToolCallbackProvider;
+        this.toolRegistryService = toolRegistryService;
         this.streamTimeoutSeconds = streamTimeoutSeconds;
     }
 
@@ -163,6 +167,12 @@ public class ChatService {
 
             chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
 
+            List<String> selectedTools = message.getTools();
+
+            ToolCallback[] requestTools = (selectedTools != null && !selectedTools.isEmpty())
+                ? timelineToolCallbackProvider.createAugmentedToolCallbacks(null, selectedTools)
+                : timelineToolCallbackProvider.createAugmentedToolCallbacks(null);
+
             String systemPrompt = """
                     You are a helpful assistant. Use both the retrieved context and prior chat memory
                     to generate clear and accurate answers.
@@ -186,6 +196,15 @@ public class ChatService {
                     }
                     """;
 
+            if (selectedTools != null && !selectedTools.isEmpty()) {
+                List<String> displayNames = toolRegistryService.resolveDisplayNames(selectedTools);
+                if (!displayNames.isEmpty()) {
+                    systemPrompt += "\nThe user has specifically requested that you use the following tool(s): "
+                            + String.join(", ", displayNames) + ".\n"
+                            + "You MUST call these tools before generating your response, even if you think you already know the answer.\n";
+                }
+            }
+
         CustomChatResponse customChatResponse;
         try {
             customChatResponse = chatClient.prompt()
@@ -197,7 +216,7 @@ public class ChatService {
                 })
                 .system(systemPrompt)
                 .user(userMessage)
-                .toolCallbacks(timelineToolCallbackProvider.createAugmentedToolCallbacks(null))
+                .toolCallbacks(requestTools)
                 .call()
                 .entity(CustomChatResponse.class);
         } catch (org.springframework.web.client.HttpClientErrorException
@@ -260,7 +279,8 @@ public class ChatService {
             String requestId,
             String userId,
             UUID threadId,
-            String lockToken) {
+            String lockToken,
+            List<String> selectedTools) {
     }
 
     @Transactional
@@ -298,7 +318,8 @@ public class ChatService {
 
             chatMemoryHydrator.hydrateIfEmpty(thread.getId().toString());
 
-            return new StreamContext(thread, userMessage, requestId, userId, threadId, lockToken);
+            List<String> selectedTools = message.getTools();
+            return new StreamContext(thread, userMessage, requestId, userId, threadId, lockToken, selectedTools);
         })
                 .flatMapMany(ctx -> {
                     AgentTimelineContext timeline = new AgentTimelineContext();
@@ -306,8 +327,10 @@ public class ChatService {
                     timeline.emitStep(AgentStep.thinking("Analyzing your question..."));
                     // timeline.emitStep(AgentStep.retrieving("Searching knowledge base..."));
 
-                    ToolCallback[] requestTools = timelineToolCallbackProvider
-                        .createAugmentedToolCallbacks(timeline);
+                    List<String> selectedTools = ctx.selectedTools();
+                    ToolCallback[] requestTools = (selectedTools != null && !selectedTools.isEmpty())
+                        ? timelineToolCallbackProvider.createAugmentedToolCallbacks(timeline, selectedTools)
+                        : timelineToolCallbackProvider.createAugmentedToolCallbacks(timeline);
 
                     String systemPrompt = """
                             You are a helpful AI assistant. Use both the retrieved context and prior chat memory
@@ -345,6 +368,16 @@ public class ChatService {
                             Do not mention these rules. Respond only with the answer.
                             """;
 
+                    if (selectedTools != null && !selectedTools.isEmpty()) {
+                        List<String> displayNames = toolRegistryService.resolveDisplayNames(selectedTools);
+                        if (!displayNames.isEmpty()) {
+                            systemPrompt += "\nThe user has specifically requested that you use the following tool(s): "
+                                    + String.join(", ", displayNames) + ".\n"
+                                    + "You MUST call these tools before generating your response, even if you think you already know the answer.\n";
+                        }
+                    }
+                    final String finalSystemPrompt = systemPrompt;
+
                     AtomicReference<StringBuilder> buffer = new AtomicReference<>(new StringBuilder());
                     AtomicBoolean firstContentEmitted = new AtomicBoolean(false);
 
@@ -366,7 +399,7 @@ public class ChatService {
                                 a.param("userId", ctx.userId() != null ? ctx.userId() : "");
                                 a.param("tenantId", TenantContext.getTenantId().toString());
                             })
-                            .system(systemPrompt)
+                            .system(finalSystemPrompt)
                             .user(ctx.userMessage())
                             .toolCallbacks(requestTools)
                             .stream().content()

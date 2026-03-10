@@ -1,7 +1,6 @@
 package com.intellidesk.cognitia.chat.service.tools;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,37 +23,24 @@ import lombok.extern.slf4j.Slf4j;
 public class TimelineToolCallbackProvider {
 
     private final ObjectMapper objectMapper;
-    private final List<Object> allTools;
-    private final Map<String, TimelineAwareTool> toolIndex;
+    private final ToolRegistryService toolRegistry;
 
-    public TimelineToolCallbackProvider(ObjectMapper objectMapper, List<TimelineAwareTool> timelineAwareTools) {
+    public TimelineToolCallbackProvider(ObjectMapper objectMapper, ToolRegistryService toolRegistry) {
         this.objectMapper = objectMapper;
-        this.allTools = new ArrayList<>(timelineAwareTools);
-        this.toolIndex = buildToolIndex(timelineAwareTools);
-        log.info("TimelineToolCallbackProvider initialized with {} tools: {}", toolIndex.size(), toolIndex.keySet());
-    }
-
-    private Map<String, TimelineAwareTool> buildToolIndex(List<TimelineAwareTool> tools) {
-        Map<String, TimelineAwareTool> index = new HashMap<>();
-        for (TimelineAwareTool tool : tools) {
-            ToolCallback[] cbs = new AugmentedToolCallbackProvider<>(tool, AgentThinking.class, e -> {}, true)
-                    .getToolCallbacks();
-            for (ToolCallback cb : cbs) {
-                index.put(cb.getToolDefinition().name(), tool);
-            }
-        }
-        return index;
+        this.toolRegistry = toolRegistry;
+        log.info("TimelineToolCallbackProvider initialized with ToolRegistryService");
     }
 
     public ToolCallback[] createAugmentedToolCallbacks(AgentTimelineContext timeline) {
-        return createAugmentedToolCallbacks(timeline, allTools.toArray());
+        return createAugmentedToolCallbacks(timeline, toolRegistry.getAllToolObjects().toArray());
     }
 
-      /**
-     * Creates per-request augmented tool callbacks that capture the given timeline
-     * context directly in their closures.
-     */
-    public ToolCallback[] createAugmentedToolCallbacks(AgentTimelineContext timeline, Object... toolObjects) {
+    public ToolCallback[] createAugmentedToolCallbacks(AgentTimelineContext timeline, List<String> stableToolIds) {
+        List<Object> toolObjects = toolRegistry.resolveToolObjectsByStableIds(stableToolIds);
+        return createAugmentedToolCallbacks(timeline, toolObjects.toArray());
+    }
+
+    private ToolCallback[] createAugmentedToolCallbacks(AgentTimelineContext timeline, Object... toolObjects) {
         List<ToolCallback> allCallbacks = new ArrayList<>();
 
         for (Object toolObject : toolObjects) {
@@ -76,7 +62,7 @@ public class TimelineToolCallbackProvider {
                                 toolName, event.rawInput());
                         Map<String, Object> args = parseArgs(event.rawInput());
 
-                        TimelineAwareTool aware = toolIndex.get(toolName);
+                        TimelineAwareTool aware = toolRegistry.getNativeToolBySpringName(toolName);
                         String description = (aware != null && aware.timelineDescription() != null)
                                 ? aware.timelineDescription()
                                 : "Using " + toolName + "...";
@@ -94,7 +80,7 @@ public class TimelineToolCallbackProvider {
 
             ToolCallback[] callbacks = augmented.getToolCallbacks();
             for (ToolCallback cb : callbacks) {
-                allCallbacks.add(new TimedToolCallback(cb, timeline, toolIndex));
+                allCallbacks.add(new TimedToolCallback(cb, timeline, toolRegistry));
             }
         }
 
@@ -116,12 +102,12 @@ public class TimelineToolCallbackProvider {
 
         private final ToolCallback delegate;
         private final AgentTimelineContext timeline;
-        private final Map<String, TimelineAwareTool> toolIndex;
+        private final ToolRegistryService toolRegistry;
 
-        TimedToolCallback(ToolCallback delegate, AgentTimelineContext timeline, Map<String, TimelineAwareTool> toolIndex) {
+        TimedToolCallback(ToolCallback delegate, AgentTimelineContext timeline, ToolRegistryService toolRegistry) {
             this.delegate = delegate;
             this.timeline = timeline;
-            this.toolIndex = toolIndex;
+            this.toolRegistry = toolRegistry;
         }
 
         @Override
@@ -180,7 +166,7 @@ public class TimelineToolCallbackProvider {
 
         private List<SourceReference> extractToolSources(String toolName, String result) {
             if (result == null) return List.of();
-            TimelineAwareTool aware = toolIndex.get(toolName);
+            TimelineAwareTool aware = toolRegistry.getNativeToolBySpringName(toolName);
             if (aware != null) {
                 try {
                     return aware.extractSources(result);
@@ -196,7 +182,7 @@ public class TimelineToolCallbackProvider {
                 return "No result";
             log.info("[TimelineToolCallbackProvider] [summarizeResult] Result of tool call for {} is {}", toolName,
                     result);
-            TimelineAwareTool aware = toolIndex.get(toolName);
+            TimelineAwareTool aware = toolRegistry.getNativeToolBySpringName(toolName);
             if (aware != null) {
                 String summary = aware.summarizeResult(result);
                 if (summary != null) return summary;
