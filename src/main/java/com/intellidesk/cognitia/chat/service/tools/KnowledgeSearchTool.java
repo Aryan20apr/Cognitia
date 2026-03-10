@@ -99,6 +99,15 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
     }
 
     @Override
+    public String toolId() { return "knowledge-search"; }
+
+    @Override
+    public String displayName() { return "Knowledge Base"; }
+
+    @Override
+    public String category() { return "knowledge"; }
+
+    @Override
     public String timelineDescription() {
         return "Searching knowledge base";
     }

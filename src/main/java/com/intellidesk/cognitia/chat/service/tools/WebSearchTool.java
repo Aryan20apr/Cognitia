@@ -104,6 +104,15 @@ public class WebSearchTool implements TimelineAwareTool {
     }
 
     @Override
+    public String toolId() { return "web-search"; }
+
+    @Override
+    public String displayName() { return "Web Search"; }
+
+    @Override
+    public String category() { return "search"; }
+
+    @Override
     public String timelineDescription() {
         return "Searching the web";
     }
