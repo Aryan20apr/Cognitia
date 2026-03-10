@@ -35,6 +35,7 @@ public class DocumentPreprocessingStrategy implements PreprocessingStrategy {
         documents.stream().forEach(doc -> {
             Map<String, Object> metaData = doc.getMetadata();
             metaData.put("sourceId", rawSource.getResId().toString());
+            metaData.put("sourceName", rawSource.getName());
             metaData.put("sourceUrl", rawSource.getUrl());
             metaData.put("sourceFormat", rawSource.getFormat());
         });

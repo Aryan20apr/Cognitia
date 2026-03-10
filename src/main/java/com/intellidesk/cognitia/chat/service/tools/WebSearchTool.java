@@ -11,7 +11,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.intellidesk.cognitia.chat.models.dtos.SourceReference;
 import com.intellidesk.cognitia.chat.models.dtos.TavilyResponse;
 import com.intellidesk.cognitia.chat.models.dtos.TavilyResult;
 
@@ -58,7 +60,7 @@ public class WebSearchTool implements TimelineAwareTool {
                 "include_answer", "advanced",
                 "include_raw_content", true,
                 "include_images", false,
-                "include_favicon", false);
+                "include_favicon", true);
 
         try {
             log.info("Tavily WebSearch - Params: query='{}', maxResults={}, topic='{}'", query, maxResults, topic);
@@ -115,6 +117,28 @@ public class WebSearchTool implements TimelineAwareTool {
             return "Found " + count + " search result" + (count != 1 ? "s" : "");
         } catch (Exception e) {
             return "Search completed";
+        }
+    }
+
+    @Override
+    public List<SourceReference> extractSources(String rawJsonResult) {
+        if (rawJsonResult == null || rawJsonResult.isBlank()) return List.of();
+        try {
+            List<TavilyResult> results = objectMapper.readValue(
+                    rawJsonResult, new TypeReference<List<TavilyResult>>() {});
+            return results.stream()
+                    .map(r -> new SourceReference(
+                            "web",
+                            r.getTitle(),
+                            r.getUrl(),
+                            r.getFavicon(),
+                            null,
+                            null,
+                            r.getScore()))
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Failed to extract web search sources: {}", e.getMessage());
+            return List.of();
         }
     }
 }

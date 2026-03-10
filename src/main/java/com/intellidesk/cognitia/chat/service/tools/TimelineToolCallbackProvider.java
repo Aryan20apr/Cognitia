@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellidesk.cognitia.chat.models.dtos.AgentStep;
+import com.intellidesk.cognitia.chat.models.dtos.SourceReference;
 import com.intellidesk.cognitia.chat.service.AgentTimelineContext;
 
 import lombok.extern.slf4j.Slf4j;
@@ -149,10 +150,12 @@ public class TimelineToolCallbackProvider {
                 long duration = System.currentTimeMillis() - start;
 
                 if (timeline != null) {
+                    List<SourceReference> sources = extractToolSources(toolName, result);
                     timeline.emitStep(AgentStep.toolResult(
                             toolName,
                             summarizeResult(toolName, result),
-                            duration));
+                            duration,
+                            sources));
                 }
                 return result;
             } catch (Exception e) {
@@ -173,6 +176,19 @@ public class TimelineToolCallbackProvider {
         @Override
         public String call(String toolInput, ToolContext toolContext) {
             return call(toolInput);
+        }
+
+        private List<SourceReference> extractToolSources(String toolName, String result) {
+            if (result == null) return List.of();
+            TimelineAwareTool aware = toolIndex.get(toolName);
+            if (aware != null) {
+                try {
+                    return aware.extractSources(result);
+                } catch (Exception e) {
+                    log.warn("[TimedToolCallback] Failed to extract sources for {}: {}", toolName, e.getMessage());
+                }
+            }
+            return List.of();
         }
 
         private String summarizeResult(String toolName, String result) {

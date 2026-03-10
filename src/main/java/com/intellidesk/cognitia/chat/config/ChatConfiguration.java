@@ -12,10 +12,6 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
-import org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter;
-import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
-import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -85,24 +81,24 @@ public class ChatConfiguration {
                 .build();
     }
 
-    @Bean
-    public RetrievalAugmentationAdvisor retrievalAugmentationAdvisor(
-            VectorStore vectorStore,
-            @Qualifier("lightClient") ChatClient lightClient) {
-        return RetrievalAugmentationAdvisor.builder()
-                .queryTransformers(RewriteQueryTransformer.builder()
-                        .chatClientBuilder(lightClient.mutate())
-                        .build())
-                .documentRetriever(VectorStoreDocumentRetriever.builder()
-                        .vectorStore(vectorStore)
-                        .similarityThreshold(0.50)
-                        .topK(3)
-                        .build())
-                .queryAugmenter(ContextualQueryAugmenter.builder()
-                        .allowEmptyContext(true)
-                        .build())
-                .build();
-    }
+    // @Bean
+    // public RetrievalAugmentationAdvisor retrievalAugmentationAdvisor(
+    //         VectorStore vectorStore,
+    //         @Qualifier("lightClient") ChatClient lightClient) {
+    //     return RetrievalAugmentationAdvisor.builder()
+    //             .queryTransformers(RewriteQueryTransformer.builder()
+    //                     .chatClientBuilder(lightClient.mutate())
+    //                     .build())
+    //             .documentRetriever(VectorStoreDocumentRetriever.builder()
+    //                     .vectorStore(vectorStore)
+    //                     .similarityThreshold(0.50)
+    //                     .topK(3)
+    //                     .build())
+    //             .queryAugmenter(ContextualQueryAugmenter.builder()
+    //                     .allowEmptyContext(true)
+    //                     .build())
+    //             .build();
+    // }
 
     // @Bean
     // @Primary
@@ -124,9 +120,9 @@ public class ChatConfiguration {
 
     @Bean
     @Primary
-    public ChatClient geminiChatClient(ChatModel chatModel, IdempotencyCallAdvisor idempotencyCallAdvisor, QuotaEnforcementAdvisor quotaEnforcementAdvisor, SummarizingChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsAdvisorV2 tokenAnalyticsCallAdvisor, RetrievalAugmentationAdvisor retrievalAugmentationAdvisor) {
+    public ChatClient geminiChatClient(ChatModel chatModel, IdempotencyCallAdvisor idempotencyCallAdvisor, QuotaEnforcementAdvisor quotaEnforcementAdvisor, SummarizingChatMemoryAdvisor chatMemoryAdvisor, TokenAnalyticsAdvisorV2 tokenAnalyticsCallAdvisor) {
         return ChatClient.builder(chatModel)
-            .defaultAdvisors(List.of(idempotencyCallAdvisor, quotaEnforcementAdvisor, chatMemoryAdvisor, retrievalAugmentationAdvisor, tokenAnalyticsCallAdvisor, new SimpleLoggerAdvisor()))
+            .defaultAdvisors(List.of(idempotencyCallAdvisor, quotaEnforcementAdvisor, chatMemoryAdvisor, tokenAnalyticsCallAdvisor, new SimpleLoggerAdvisor()))
             .build();
     }
 

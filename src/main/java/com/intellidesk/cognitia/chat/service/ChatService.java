@@ -304,7 +304,7 @@ public class ChatService {
                     AgentTimelineContext timeline = new AgentTimelineContext();
 
                     timeline.emitStep(AgentStep.thinking("Analyzing your question..."));
-                    timeline.emitStep(AgentStep.retrieving("Searching knowledge base..."));
+                    // timeline.emitStep(AgentStep.retrieving("Searching knowledge base..."));
 
                     ToolCallback[] requestTools = timelineToolCallbackProvider
                         .createAugmentedToolCallbacks(timeline);
@@ -323,6 +323,11 @@ public class ChatService {
                             - For questions about current events, news, or real-time data, use available search tools.
                             - For questions requiring the current date or time, use the appropriate date/time tool.
                             - You may call tools multiple times or combine results from different tools.
+                            - When calling any search tool, always formulate the search query based on the 
+                            actual topic being discussed, not the literal words of the user's request. 
+                            Resolve pronouns, references like "this", "that", "it", and meta-phrases 
+                            like "our knowledge base" or "what do you know" into the concrete subject 
+                            matter from the conversation before constructing the query.
 
                             Response format requirements:
                             - Respond in clean, well-structured Markdown suitable for incremental streaming.

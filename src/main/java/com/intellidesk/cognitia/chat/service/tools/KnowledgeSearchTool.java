@@ -11,7 +11,9 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.intellidesk.cognitia.chat.models.dtos.SourceReference;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -90,6 +92,7 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
         return new KnowledgeResult(
                 doc.getText(),
                 (String) metadata.get("sourceId"),
+                (String) metadata.get("sourceName"),
                 (String) metadata.get("sourceUrl"),
                 (String) metadata.get("sourceFormat")
         );
@@ -113,9 +116,32 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
         }
     }
 
+    @Override
+    public List<SourceReference> extractSources(String rawJsonResult) {
+        if (rawJsonResult == null || rawJsonResult.isBlank()) return List.of();
+        try {
+            List<KnowledgeResult> results = objectMapper.readValue(
+                    rawJsonResult, new TypeReference<List<KnowledgeResult>>() {});
+            return results.stream()
+                    .map(r -> new SourceReference(
+                            "knowledge",
+                            r.sourceName() != null ? r.sourceName() : r.sourceId(),
+                            null,
+                            null,
+                            r.sourceId(),
+                            r.sourceFormat(),
+                            null))
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Failed to extract knowledge search sources: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
     public record KnowledgeResult(
             String content,
             String sourceId,
+            String sourceName,
             String sourceUrl,
             String sourceFormat
     ) {}
