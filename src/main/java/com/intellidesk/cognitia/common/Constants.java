@@ -1,6 +1,10 @@
 package com.intellidesk.cognitia.common;
 
+import java.util.UUID;
+
 public class Constants {
+    public static final UUID PLATFORM_TENANT_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
     public static final String PARAM_USER_ID = "userId";
     public static final String PARAM_TENANT_ID = "tenantId";
     public static final String PARAM_REQUEST_ID = "requestId";

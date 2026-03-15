@@ -79,7 +79,7 @@ public class ChatService {
 
     @Transactional
     public ChatThreadDTO getThread(String threadId) {
-        ChatThread thread = threadRepository.findById(UUID.fromString(threadId))
+        ChatThread thread = threadRepository.findByIdAndUserId(UUID.fromString(threadId), getCurrentUserId())
                 .orElseThrow(() -> new RuntimeException("Thread not found"));
 
         return ChatThreadDTO.builder()
@@ -102,7 +102,7 @@ public class ChatService {
     public Boolean updateThread(String threadId, ChatThreadDTO chatThreadDTO) {
         UUID id = UUID.fromString(threadId);
 
-        int rowsUpdated = threadRepository.updateTitleById(id, chatThreadDTO.getTitle());
+        int rowsUpdated = threadRepository.updateTitleByIdAndUserId(id, chatThreadDTO.getTitle(), getCurrentUserId());
 
         if (rowsUpdated == 0) {
             throw new RuntimeException("Thread not found");
@@ -113,7 +113,7 @@ public class ChatService {
 
     @Transactional
     public List<ChatThreadDTO> getAllThreads() {
-        return threadRepository.findAll().stream()
+        return threadRepository.findAllByUserId(getCurrentUserId()).stream()
                 .map(thread -> ChatThreadDTO.builder()
                         .id(thread.getId())
                         .title(thread.getTitle())
@@ -124,8 +124,11 @@ public class ChatService {
 
     @Transactional
     public void deleteThread(String threadId) {
-        if (threadRepository.existsById(UUID.fromString(threadId)))
-            threadRepository.deleteById(UUID.fromString(threadId));
+        UUID id = UUID.fromString(threadId);
+        if (threadRepository.existsByIdAndUserId(id, getCurrentUserId()))
+            threadRepository.deleteById(id);
+        else
+            throw new RuntimeException("Thread not found");
     }
 
     /**
@@ -149,9 +152,9 @@ public class ChatService {
 
         try {
             String requestId = message.getRequestId();
-            String userId = extractUserIdFromSecurityContext();
-            final String resolvedUserId = userId;
-            ChatThread thread = threadRepository.findById(threadId)
+            UUID currentUserId = getCurrentUserId();
+            final String resolvedUserId = currentUserId.toString();
+            ChatThread thread = threadRepository.findByIdAndUserId(threadId, currentUserId)
                     .orElseThrow(() -> new RuntimeException("Thread not found"));
 
             String userMessage = message.getMessage();
@@ -247,7 +250,7 @@ public class ChatService {
 
     public ChatThread createNewThread() {
         User user = new User();
-        user.setId(UUID.fromString(extractUserIdFromSecurityContext()));
+        user.setId(getCurrentUserId());
         ChatThread chatThread = new ChatThread();
         chatThread.setTitle("New Chat");
         chatThread.setUser(user);
@@ -255,19 +258,17 @@ public class ChatService {
         return chatThread;
     }
 
-    String extractUserIdFromSecurityContext() {
-        String userId = null;
-
+    UUID getCurrentUserId() {
         try {
             var authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails) {
                 CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-                userId = userDetails.getUser().getId().toString();
+                return userDetails.getUser().getId();
             }
         } catch (Exception e) {
             log.warn("Could not extract userId from SecurityContext: {}", e.getMessage());
         }
-        return userId;
+        throw new RuntimeException("User not authenticated");
     }
 
     /**
@@ -300,9 +301,10 @@ public class ChatService {
             }),
             lockToken -> Mono.fromCallable(() -> {
             String requestId = message.getRequestId();
-            String userId = extractUserIdFromSecurityContext();
+            UUID currentUserId = getCurrentUserId();
+            String userId = currentUserId.toString();
 
-            ChatThread thread = threadRepository.findById(threadId)
+            ChatThread thread = threadRepository.findByIdAndUserId(threadId, currentUserId)
                     .orElseThrow(() -> new RuntimeException("Thread not found"));
 
             String userMessage = message.getMessage();
