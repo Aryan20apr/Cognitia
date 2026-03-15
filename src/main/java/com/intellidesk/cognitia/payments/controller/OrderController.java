@@ -1,20 +1,22 @@
 package com.intellidesk.cognitia.payments.controller;
 
-import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.payments.models.dtos.OrderCreationDTO;
 import com.intellidesk.cognitia.payments.models.dtos.OrderDTO;
+import com.intellidesk.cognitia.payments.models.dtos.OrderStatusDTO;
 import com.intellidesk.cognitia.payments.service.gateway.PaymentGateway;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,6 +51,7 @@ public class OrderController {
         description = "Invalid order creation request"
     )
     @PostMapping
+    @PreAuthorize("hasAuthority('PERM_ORDER_CREATE')")
     public ResponseEntity<ApiResponse<?>> createRazorpayOrder(@RequestBody @Valid OrderCreationDTO order) {
         
         OrderDTO newOrder = paymentGateway.createOrder(order);
@@ -56,12 +59,11 @@ public class OrderController {
         return new ResponseEntity<>(apiResponse, HttpStatus.CREATED);
     }
 
-    @GetMapping("/status")
-    public ResponseEntity<?> getOrderStatus(@RequestParam String orderRef) {
-        String status = paymentGateway.getOrderStatus(orderRef);
-        JSONObject response = new JSONObject();
-        response.put("status", status);
-        return ResponseEntity.ok(new ApiResponse<>("Order Status", true, response));
+    @GetMapping("{orderRef}/status")
+    @PreAuthorize("hasAuthority('PERM_ORDER_READ')")
+    public ResponseEntity<?> getOrderStatus(@PathVariable String orderRef) {
+        OrderStatusDTO status = paymentGateway.getOrderStatus(orderRef);
+        return ResponseEntity.ok(new ApiResponse<>("Order Status", true, status));
     }
     
     

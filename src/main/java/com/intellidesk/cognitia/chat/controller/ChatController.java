@@ -34,6 +34,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import reactor.core.publisher.Flux;
 
 @RestController
@@ -41,6 +42,7 @@ import reactor.core.publisher.Flux;
 @AllArgsConstructor
 @Slf4j
 @Tag(name = "Chat", description = "Chat endpoints")
+@PreAuthorize("hasAuthority('PERM_CHAT_ACCESS')")
 public class ChatController {
 
     private final ChatService chatService;
