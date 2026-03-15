@@ -1,5 +1,7 @@
 package com.intellidesk.cognitia.userandauth.models.entities.enums;
 
+import java.util.Set;
+
 public enum Permissions {
     USER_CREATE,
     USER_READ,
@@ -22,5 +24,23 @@ public enum Permissions {
     RESOURCE_CREATE,
     RESOURCE_UPDATE,
     RESOURCE_GET,
-    RESOURCE_DELETE
+    RESOURCE_DELETE,
+    CHAT_ACCESS,
+    INGESTION_READ,
+    ORDER_CREATE,
+    ORDER_READ,
+    PAYMENT_VERIFY,
+    ANALYTICS_READ,
+    TENANT_LIST,
+    QUOTA_READ,
+    QUOTA_ADMIN;
+
+    private static final Set<Permissions> PLATFORM_LEVEL = Set.of(
+            PLAN_CREATE, PLAN_UPDATE, PLAN_DELETE, PLAN_READ,
+            TENANT_LIST, QUOTA_ADMIN
+    );
+
+    public static boolean isPlatformLevel(Permissions permission) {
+        return PLATFORM_LEVEL.contains(permission);
+    }
 }
