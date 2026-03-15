@@ -73,6 +73,11 @@ public class DefaultPaymentEventProcessor implements PaymentEventProcessor {
                 req.setOrderRef(order.getOrderRef());
                 req.setResetUsage(true);
                 quotaService.assignPlan(order.getTenantId(), req);
+
+                orderRepository.updateFulfillmentStatusByOrderId(
+                        payment.getOrderId(), FulfillmentStatus.FULFILLED);
+                log.info("[DefaultPaymentEventProcessor] Marked order {} as FULFILLED via webhook path",
+                    payment.getOrderId());
             }
 
             sendPaymentSuccessEmail(order, payment);

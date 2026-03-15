@@ -2,7 +2,6 @@ package com.intellidesk.cognitia.payments.service.gateway.razorpay;
 
 import java.time.ZoneId;
 import java.util.Date;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.json.JSONArray;
@@ -11,12 +10,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.intellidesk.cognitia.analytics.models.dto.AssignPlanRequest;
+import com.intellidesk.cognitia.analytics.service.QuotaService;
 import com.intellidesk.cognitia.payments.models.dtos.OrderCreationDTO;
 import com.intellidesk.cognitia.payments.models.dtos.OrderDTO;
+import com.intellidesk.cognitia.payments.models.dtos.OrderStatusDTO;
+import com.intellidesk.cognitia.payments.models.dtos.VerificationResultDTO;
 import com.intellidesk.cognitia.payments.models.dtos.razopayDtos.PaymentVerificationDTO;
 import com.intellidesk.cognitia.payments.models.entities.PaymentOrder;
 import com.intellidesk.cognitia.payments.models.enums.FulfillmentStatus;
 import com.intellidesk.cognitia.payments.models.enums.OrderStatus;
+import com.intellidesk.cognitia.payments.models.enums.PaymentPurpose;
 import com.intellidesk.cognitia.payments.models.enums.PaymentStatus;
 import com.intellidesk.cognitia.payments.models.enums.PaymentVerification;
 import com.intellidesk.cognitia.payments.repository.OrderRepository;
@@ -38,6 +42,7 @@ public class RazorpayGateway implements PaymentGateway {
 
     private final RazorpayClient razorpayClient;
     private final OrderRepository orderRepository;
+    private final QuotaService quotaService;
     
     @Value("${razorpay.api.secret}")
     private String razorpayApiSecret;
@@ -133,44 +138,87 @@ public class RazorpayGateway implements PaymentGateway {
 
     @Override
     @Transactional
-    public Boolean verifyPayment(PaymentVerificationDTO paymentVerificationDTO) {
+    public VerificationResultDTO verifyPayment(PaymentVerificationDTO paymentVerificationDTO) {
       log.info("[RazorpayGateway] [verifyPayment] Received PaymentVerificationDTO: {}", paymentVerificationDTO);
-      Optional<String> optionalOrder =  orderRepository.findOrderIdByOrderRef(paymentVerificationDTO.orderRef());
-
-      if(!optionalOrder.isPresent()){
-        throw new ApiException("Order not found");
-      }
+      PaymentOrder order = orderRepository.findByOrderRef(paymentVerificationDTO.orderRef())
+              .orElseThrow(() -> new ApiException("Order not found"));
 
         JSONObject options = new JSONObject();
-        options.put("razorpay_order_id", optionalOrder.get());
+        options.put("razorpay_order_id", order.getOrderId());
         options.put("razorpay_payment_id", paymentVerificationDTO.paymentId());
         options.put("razorpay_signature", paymentVerificationDTO.signature());
 
+        boolean verified;
         try {
-            Boolean res = Utils.verifyPaymentSignature(options, razorpayApiSecret);
-            if(res){
-                orderRepository.updateVerificationByOrderRef(paymentVerificationDTO.orderRef(), PaymentVerification.SUCCESS);
-            } else {
-                orderRepository.updateVerificationByOrderRef(paymentVerificationDTO.orderRef(), PaymentVerification.FAILED);
-            }
-            return res;
+            verified = Utils.verifyPaymentSignature(options, razorpayApiSecret);
         } catch (RazorpayException ex) {
-            log.error("Exception occured during payment verification: {}",ex.getMessage());
+            log.error("Exception occured during payment verification: {}", ex.getMessage());
+            verified = false;
+        }
+
+        if (!verified) {
             orderRepository.updateVerificationByOrderRef(paymentVerificationDTO.orderRef(), PaymentVerification.FAILED);
-            return false;
+            return VerificationResultDTO.builder()
+                    .verified(false)
+                    .fulfillmentStatus(order.getFulfillmentStatus())
+                    .build();
+        }
+
+        orderRepository.updateVerificationByOrderRef(paymentVerificationDTO.orderRef(), PaymentVerification.SUCCESS);
+        order.setVerification(PaymentVerification.SUCCESS);
+
+        return attemptFulfillment(order);
+    }
+
+    private VerificationResultDTO attemptFulfillment(PaymentOrder order) {
+        if (order.getPurposeType() != PaymentPurpose.PLAN_UPGRADE
+                || order.getFulfillmentStatus() != FulfillmentStatus.UNFULFILLED) {
+            return VerificationResultDTO.builder()
+                    .verified(true)
+                    .fulfillmentStatus(order.getFulfillmentStatus())
+                    .planId(order.getPurposeRefId())
+                    .build();
+        }
+
+        try {
+            log.info("[RazorpayGateway] Attempting synchronous plan fulfillment for order {} tenant {}",
+                    order.getOrderRef(), order.getTenantId());
+            AssignPlanRequest req = new AssignPlanRequest();
+            req.setPlanId(order.getPurposeRefId());
+            req.setOrderRef(order.getOrderRef());
+            req.setResetUsage(true);
+            if (true) throw new RuntimeException("Simulated: quota service unavailable");
+            quotaService.assignPlan(order.getTenantId(), req);
+
+            return VerificationResultDTO.builder()
+                    .verified(true)
+                    .fulfillmentStatus(FulfillmentStatus.FULFILLED)
+                    .planId(order.getPurposeRefId())
+                    .build();
+        } catch (Exception ex) {
+            log.error("[RazorpayGateway] Synchronous fulfillment failed for order {}. " +
+                    "Webhook will retry. Error: {}", order.getOrderRef(), ex.getMessage());
+            return VerificationResultDTO.builder()
+                    .verified(true)
+                    .fulfillmentStatus(FulfillmentStatus.UNFULFILLED)
+                    .planId(order.getPurposeRefId())
+                    .fulfillmentError("Plan activation is being processed. It will be ready shortly.")
+                    .build();
         }
     }
 
 
     @Override
-    public String getOrderStatus(String orderRef) {
-        Optional<PaymentOrder> order = orderRepository.findByOrderRef(orderRef);
-        if(!order.isPresent()){
-         log.error("[RazorpayGateway] [getPaymentStatus] Order not found for orderRef: {}", orderRef);
-           return "FAILED";
-        }
-        PaymentOrder paymentOrder = order.get();
-        return paymentOrder.getStatus().name();
+    public OrderStatusDTO getOrderStatus(String orderRef) {
+        PaymentOrder paymentOrder = orderRepository.findByOrderRef(orderRef)
+                .orElseThrow(() -> new ApiException("Order not found for orderRef: " + orderRef));
+
+        return OrderStatusDTO.builder()
+                .orderStatus(paymentOrder.getStatus())
+                .verification(paymentOrder.getVerification())
+                .fulfillmentStatus(paymentOrder.getFulfillmentStatus())
+                .planId(paymentOrder.getPurposeRefId())
+                .build();
     }
 
 }
