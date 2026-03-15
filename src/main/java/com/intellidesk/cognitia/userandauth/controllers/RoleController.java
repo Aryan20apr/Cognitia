@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.userandauth.models.dtos.PermissionDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.RoleCreationDTO;
@@ -33,6 +35,7 @@ public class RoleController {
 
     @Operation(summary = "Create a new role with permissions")
     @PostMapping()
+    @PreAuthorize("hasAuthority('PERM_ROLE_CREATE')")
     public ResponseEntity<ApiResponse<?>> postMethodName(@RequestBody RoleCreationDTO roleCreationDTO) {
         
         RoleCreationDTO roleCreationDTO2 = roleService.createRole(roleCreationDTO);
@@ -41,6 +44,7 @@ public class RoleController {
 
     @Operation(summary = "Get all roles")
     @GetMapping("/all")
+    @PreAuthorize("hasAuthority('PERM_ROLE_READ')")
     public ResponseEntity<ApiResponse<?>> getRoles() {
         List<RoleCreationDTO> roles = roleService.getAllRoles();
         return ResponseEntity.ok(new ApiResponse<>("Roles fetched successfully", true, roles));
@@ -48,6 +52,7 @@ public class RoleController {
 
     @Operation(summary = "Update a role with name and permissions")
     @PatchMapping()
+    @PreAuthorize("hasAuthority('PERM_ROLE_UPDATE')")
     public ResponseEntity<ApiResponse<RoleCreationDTO>> updateRole(@RequestBody RoleCreationDTO roleCreationDTO) {
         RoleCreationDTO roleCreationDTO2 = roleService.updateRole(roleCreationDTO);
         return ResponseEntity.ok(new ApiResponse<>("Role updated successfully", true, roleCreationDTO2));
@@ -55,6 +60,7 @@ public class RoleController {
 
     @Operation(summary = "Get all permissions")
     @GetMapping("/permissions")
+    @PreAuthorize("hasAuthority('PERM_PERMISSION_READ')")
     public ResponseEntity<?> getAllPermissions() {
         List<PermissionDTO> permissions = permissionService.getAllPermissions();
         return ResponseEntity.ok(new ApiResponse<>("Permissions fetched successfully", true, permissions));

@@ -353,6 +353,34 @@ public class QuotaServiceImpl implements QuotaService {
         return mapper.toDto(saved);
     }
 
+    @Override
+    @Transactional
+    public TenantQuotaDTO downgradePlan(UUID tenantId, UUID targetPlanId) {
+        Plan targetPlan = planRepository.findById(targetPlanId)
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found"));
+
+        TenantQuota existingQuota = tenantQuotaRepository.findByTenantId(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("Tenant quota not found — no current plan to downgrade from"));
+
+        Plan currentPlan = existingQuota.getPlanId();
+        if (currentPlan == null) {
+            throw new IllegalArgumentException("Tenant has no current plan to downgrade from");
+        }
+
+        if (currentPlan.getId().equals(targetPlanId)) {
+            throw new IllegalArgumentException("Target plan is the same as the current plan");
+        }
+
+        if (isUpgrade(currentPlan, targetPlan)) {
+            throw new IllegalArgumentException("Target plan is not a downgrade. Use the payment flow to upgrade.");
+        }
+
+        AssignPlanRequest request = new AssignPlanRequest();
+        request.setPlanId(targetPlanId);
+        request.setResetUsage(false);
+        return assignPlan(tenantId, request);
+    }
+
     // ==================== Plan Change Payment Validation Utility Methods ====================
 
     /**

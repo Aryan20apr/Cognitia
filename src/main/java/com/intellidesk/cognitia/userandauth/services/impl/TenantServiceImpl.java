@@ -137,8 +137,9 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     public List<Tenant> getAllCompanies() {
-
-        return tenantRepository.findAll();
+        return tenantRepository.findAll().stream()
+                .filter(t -> !Constants.PLATFORM_TENANT_ID.equals(t.getId()))
+                .toList();
     }
 
     private TenantDTO handleReregistration(User user, TenantDTO tenantDTO) {

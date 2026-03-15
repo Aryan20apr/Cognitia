@@ -52,6 +52,7 @@ public class PlanController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Plan not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('PERM_PLAN_READ')")
     public ResponseEntity<ApiResponse<PlanDTO>> getPlanById(
             @Parameter(description = "Plan ID", required = true)
             @PathVariable UUID id) {
@@ -68,6 +69,7 @@ public class PlanController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Plan not found")
     })
     @GetMapping("/code/{code}")
+    @PreAuthorize("hasAuthority('PERM_PLAN_READ')")
     public ResponseEntity<ApiResponse<PlanDTO>> getPlanByCode(
             @Parameter(description = "Plan code", required = true)
             @PathVariable String code) {
@@ -121,7 +123,7 @@ public class PlanController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden")
     })
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('PERM_PLAN_UPDATE')")
+    @PreAuthorize("hasAuthority('PERM_PLAN_DELETE')")
     public ResponseEntity<ApiResponse<Void>> deactivatePlan(
             @Parameter(description = "Plan ID", required = true)
             @PathVariable UUID id) {

@@ -18,6 +18,8 @@ import com.intellidesk.cognitia.ingestion.models.dtos.ResourceDetails;
 import com.intellidesk.cognitia.ingestion.models.dtos.ResourceMetadata;
 import com.intellidesk.cognitia.ingestion.service.ResourceService;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
@@ -34,6 +36,7 @@ public class RawResourceController {
 
     @Operation(summary = "Upload and ingest raw resource (multipart)")
     @PostMapping(value = "/ingest", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('PERM_RESOURCE_CREATE')")
     public ResponseEntity<?> ingestResource(@RequestPart("file") MultipartFile file,
             @RequestPart("name") String name, @RequestPart("description") String description) {
 
@@ -46,6 +49,7 @@ public class RawResourceController {
 
     @Operation(summary = "Get all uploaded resources")
     @GetMapping(value = "/history")
+    @PreAuthorize("hasAuthority('PERM_RESOURCE_GET')")
     public ResponseEntity<?> getResourceHistory(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
                 Page<ResourceDetails> history =

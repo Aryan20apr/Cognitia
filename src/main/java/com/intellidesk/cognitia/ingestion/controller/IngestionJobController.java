@@ -11,6 +11,8 @@ import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.ingestion.models.dtos.IngestionJobDetails;
 import com.intellidesk.cognitia.ingestion.service.IngestionJobService;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -29,6 +31,7 @@ public class IngestionJobController {
 
     @GetMapping("/")
     @Operation(summary = "Get all resource ingestion jobs with pagination")
+    @PreAuthorize("hasAuthority('PERM_INGESTION_READ')")
     public ResponseEntity<?> getAllIngestionJobs(@RequestParam(defaultValue = "0") int page,
                                                                                       @RequestParam(defaultValue = "10") int size) {
         Page<IngestionJobDetails> jobs = ingestionJobService.getIngestionJobDetails(page, size);

@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.userandauth.models.dtos.TenantDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
@@ -41,6 +43,7 @@ public class TenantController {
 
     @Operation(description = "Get tenant by id")
     @GetMapping("/details")
+    @PreAuthorize("hasAuthority('PERM_TENANT_READ')")
     public ResponseEntity<ApiResponse<TenantDTO>> getTenantById(){
         TenantDTO tenant = tenantService.getTenant(TenantContext.getTenantId().toString());
         ApiResponse<TenantDTO> apiResponse = new ApiResponse<>("Tenant fetched successfully", true, tenant);
@@ -50,6 +53,7 @@ public class TenantController {
 
     @Operation(summary = "List all tenants")
     @GetMapping
+    @PreAuthorize("hasAuthority('PERM_TENANT_LIST')")
     public ResponseEntity<ApiResponse<List<Tenant>>> getAllCompanies(){
 
        List<Tenant> companies = tenantService.getAllCompanies();

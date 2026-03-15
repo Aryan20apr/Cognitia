@@ -2,9 +2,12 @@ package com.intellidesk.cognitia.payments.models.dtos.razopayDtos;
 
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import lombok.Data;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class PaymentEntity {
 
     private String id;

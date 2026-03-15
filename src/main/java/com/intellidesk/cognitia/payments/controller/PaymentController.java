@@ -13,7 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
+import com.intellidesk.cognitia.payments.models.dtos.VerificationResultDTO;
 import com.intellidesk.cognitia.payments.models.dtos.razopayDtos.PaymentVerificationDTO;
 import com.intellidesk.cognitia.payments.service.gateway.PaymentGateway;
 import com.intellidesk.cognitia.payments.service.gateway.WebhookHandler;
@@ -113,21 +116,18 @@ public class PaymentController {
         content = @Content(schema = @Schema(implementation = ApiResponse.class))
     )
     @PostMapping("/verify")
+    @PreAuthorize("hasAuthority('PERM_PAYMENT_VERIFY')")
     public ResponseEntity<?>  verifyPayment(@RequestBody PaymentVerificationDTO payload) {
         
-       Boolean b = paymentGateway.verifyPayment(payload); 
-       ApiResponse<PaymentVerificationDTO> apiResponse = null;
-       HttpStatus httpStatus = null;
-       if(b){
-        apiResponse = new ApiResponse<>("Payment Verfied", true, payload);
-        httpStatus = HttpStatus.ACCEPTED;
-       } else {
-        apiResponse = new ApiResponse<>("Payment Verfication Failed", false, payload);
-        httpStatus = HttpStatus.BAD_REQUEST;
-       }
+       VerificationResultDTO result = paymentGateway.verifyPayment(payload);
 
-       return new ResponseEntity<>(apiResponse,httpStatus);
-       
+       if(result.isVerified()){
+        ApiResponse<VerificationResultDTO> apiResponse = new ApiResponse<>("Payment Verified", true, result);
+        return new ResponseEntity<>(apiResponse, HttpStatus.ACCEPTED);
+       } else {
+        ApiResponse<VerificationResultDTO> apiResponse = new ApiResponse<>("Payment Verification Failed", false, result);
+        return new ResponseEntity<>(apiResponse, HttpStatus.BAD_REQUEST);
+       }
     }
     
     

@@ -14,6 +14,8 @@ import com.intellidesk.cognitia.analytics.models.dto.ChatUsageDetailsDTO;
 import com.intellidesk.cognitia.analytics.service.ChatUsageService;
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class ChatUsageController {
     private final ChatUsageService chatUsageService;
 
     @GetMapping()
+    @PreAuthorize("hasAuthority('PERM_ANALYTICS_READ')")
     @Operation(
         summary = "Get chat usage data with pagination", 
         description = "Get paginated chat usage data optionally filtered by user id or thread id. Results are sorted by creation date descending by default."
