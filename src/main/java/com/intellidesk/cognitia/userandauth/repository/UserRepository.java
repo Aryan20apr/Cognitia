@@ -23,6 +23,9 @@ public interface UserRepository extends JpaRepository<User, UUID>{
 
     boolean existsByEmailOrPhoneNumber(String email, String phoneNumber);
 
-    @Query(value = "SELECT EXISTS(SELECT 1 FROM users WHERE email = :email OR phone_number = :phoneNumber)", nativeQuery = true)
-    boolean existsGloballyByEmailOrPhoneNumber(@Param("email") String email, @Param("phoneNumber") String phoneNumber);
+    @Query(value = "SELECT EXISTS(SELECT 1 FROM users WHERE email = :email)", nativeQuery = true)
+    boolean existsGloballyByEmail(@Param("email") String email);
+
+    @Query(value = "SELECT EXISTS(SELECT 1 FROM users WHERE phone_number = :phoneNumber)", nativeQuery = true)
+    boolean existsGloballyByPhoneNumber(@Param("phoneNumber") String phoneNumber);
 }
