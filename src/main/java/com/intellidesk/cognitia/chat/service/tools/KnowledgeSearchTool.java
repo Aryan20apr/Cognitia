@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -15,7 +16,6 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intellidesk.cognitia.chat.models.dtos.SourceReference;
-import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,9 +56,11 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
             @ToolParam(description = "Optional: filter by document format. "
                     + "Examples: 'pdf', 'docx', 'txt', 'csv'. Leave null to search all formats.",
                     required = false)
-            String sourceFormat) {
+            String sourceFormat,
 
-        UUID tenantId = TenantContext.getTenantId();
+            ToolContext toolContext) {
+
+        UUID tenantId = resolveTenantId(toolContext);
         if (tenantId == null) {
             log.error("KnowledgeSearch aborted — no tenant context available");
             return List.of();
@@ -84,6 +86,13 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
             log.error("KnowledgeSearch failed for query='{}': {}", query, e.getMessage(), e);
             return List.of();
         }
+    }
+
+    private UUID resolveTenantId(ToolContext toolContext) {
+        if (toolContext != null && toolContext.getContext().containsKey("tenantId")) {
+            return UUID.fromString((String) toolContext.getContext().get("tenantId"));
+        }
+        return null;
     }
 
     private String buildFilterExpression(UUID tenantId, String sourceFormat) {

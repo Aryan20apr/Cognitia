@@ -122,6 +122,11 @@ public class TimelineToolCallbackProvider {
 
         @Override
         public String call(String toolInput) {
+            return call(toolInput, null);
+        }
+
+        @Override
+        public String call(String toolInput, ToolContext toolContext) {
             String toolName = delegate.getToolDefinition().name();
 
             if (timeline != null && timeline.isCancelled()) {
@@ -132,7 +137,9 @@ public class TimelineToolCallbackProvider {
             long start = System.currentTimeMillis();
 
             try {
-                String result = delegate.call(toolInput);
+                String result = toolContext != null
+                        ? delegate.call(toolInput, toolContext)
+                        : delegate.call(toolInput);
                 long duration = System.currentTimeMillis() - start;
 
                 if (timeline != null) {
@@ -157,11 +164,6 @@ public class TimelineToolCallbackProvider {
                 log.error("[TimedToolCallback] Tool {} failed after {}ms", toolName, duration, e);
                 return errorPayload;
             }
-        }
-
-        @Override
-        public String call(String toolInput, ToolContext toolContext) {
-            return call(toolInput);
         }
 
         private List<SourceReference> extractToolSources(String toolName, String result) {
