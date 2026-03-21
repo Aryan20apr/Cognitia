@@ -221,7 +221,9 @@ public class ChatService {
                 .system(systemPrompt)
                 .user(userMessage)
                 .toolCallbacks(requestTools)
-                .toolContext(Map.of("tenantId", TenantContext.getTenantId().toString()))
+                .toolContext(Map.of(
+                        "tenantId", TenantContext.getTenantId().toString(),
+                        "conversationId", threadId.toString()))
                 .call()
                 .entity(CustomChatResponse.class);
         } catch (org.springframework.web.client.HttpClientErrorException
@@ -407,7 +409,9 @@ public class ChatService {
                             .system(finalSystemPrompt)
                             .user(ctx.userMessage())
                             .toolCallbacks(requestTools)
-                            .toolContext(Map.of("tenantId", tenantIdStr))
+                            .toolContext(Map.of(
+                                    "tenantId", tenantIdStr,
+                                    "conversationId", ctx.threadId().toString()))
                             .stream().content()
                             .timeout(Duration.ofSeconds(streamTimeoutSeconds))
                             .doOnNext(chunk -> {

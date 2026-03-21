@@ -9,8 +9,13 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.document.DocumentWriter;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
 import org.springframework.ai.transformer.splitter.TextSplitter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+
+import com.intellidesk.cognitia.ingestion.service.transformer.ContextualChunkEnricher;
+import com.intellidesk.cognitia.ingestion.service.transformer.DocumentContext;
+import com.intellidesk.cognitia.ingestion.service.transformer.DocumentContextExtractor;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,21 +23,45 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DocumentPreprocessingStrategy implements PreprocessingStrategy {
 
-    private TextSplitter textSplitter;
-    private DocumentWriter documentWriter;
+    private final TextSplitter textSplitter;
+    private final DocumentWriter documentWriter;
+    private final DocumentContextExtractor documentContextExtractor;
+    private final ContextualChunkEnricher contextualChunkEnricher;
+    private final boolean enrichmentEnabled;
 
-    DocumentPreprocessingStrategy(TextSplitter textSplitter, DocumentWriter documentWriter){
+    DocumentPreprocessingStrategy(TextSplitter textSplitter,
+                                  DocumentWriter documentWriter,
+                                  DocumentContextExtractor documentContextExtractor,
+                                  ContextualChunkEnricher contextualChunkEnricher,
+                                  @Value("${ingestion.contextual-enrichment.enabled:true}") boolean enrichmentEnabled) {
         this.textSplitter = textSplitter;
         this.documentWriter = documentWriter;
+        this.documentContextExtractor = documentContextExtractor;
+        this.contextualChunkEnricher = contextualChunkEnricher;
+        this.enrichmentEnabled = enrichmentEnabled;
     }
 
     public List<Document> preprocess(Resource resource, com.intellidesk.cognitia.ingestion.models.entities.Resource rawSource ){
         
         TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(resource);
 
-        List<Document> documents = tikaDocumentReader.read();
+        List<Document> rawDocuments = tikaDocumentReader.read();
 
-        documents = textSplitter.apply(documents);
+        List<Document> documents = textSplitter.apply(rawDocuments);
+
+        if (enrichmentEnabled) {
+            try {
+                DocumentContext docContext = documentContextExtractor.extract(rawDocuments, documents, rawSource);
+                String serializedContext = docContext.serialize();
+                documents.forEach(doc -> doc.getMetadata().put(ContextualChunkEnricher.METADATA_KEY, serializedContext));
+                documents = contextualChunkEnricher.apply(documents);
+                documents.forEach(doc -> doc.getMetadata().remove(ContextualChunkEnricher.METADATA_KEY));
+                log.info("Contextual enrichment completed for resource: {}", rawSource.getName());
+            } catch (Exception e) {
+                log.error("Contextual enrichment failed for resource {}, proceeding with unenriched chunks: {}",
+                        rawSource.getName(), e.getMessage());
+            }
+        }
 
         String ingestionTimestamp = Instant.now().toString();
         String contentType = resolveContentType(rawSource.getFormat());

@@ -5,12 +5,17 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -29,13 +34,26 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
 
     private final VectorStore vectorStore;
     private final ObjectMapper objectMapper;
+    private final ChatClient lightClient;
+    private final ChatMemory chatMemory;
+    private final boolean contextualSearchEnabled;
+    private final int historyWindow;
 
     private static final int DEFAULT_TOP_K = 5;
     private static final double DEFAULT_SIMILARITY_THRESHOLD = 0.50;
 
-    public KnowledgeSearchTool(VectorStore vectorStore, ObjectMapper objectMapper) {
+    public KnowledgeSearchTool(VectorStore vectorStore,
+                               ObjectMapper objectMapper,
+                               @Qualifier("lightClient") ChatClient lightClient,
+                               ChatMemory chatMemory,
+                               @Value("${cognitia.chat.contextual-search.enabled:true}") boolean contextualSearchEnabled,
+                               @Value("${cognitia.chat.contextual-search.history-window:5}") int historyWindow) {
         this.vectorStore = vectorStore;
         this.objectMapper = objectMapper;
+        this.lightClient = lightClient;
+        this.chatMemory = chatMemory;
+        this.contextualSearchEnabled = contextualSearchEnabled;
+        this.historyWindow = historyWindow;
     }
 
     @Tool(description = "Search the user's ingested knowledge base (uploaded documents, files, and resources) "
@@ -69,11 +87,16 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
         int resolvedTopK = (topK != null && topK >= 1 && topK <= 10) ? topK : DEFAULT_TOP_K;
         String filterExpression = buildFilterExpression(tenantId, sourceFormat);
 
-        log.info("KnowledgeSearch - query='{}', topK={}, tenantId={}, filter='{}'",
-                query, resolvedTopK, tenantId, filterExpression);
+        String searchQuery = query;
+        if (contextualSearchEnabled) {
+            searchQuery = rewriteQueryWithContext(query, toolContext);
+        }
+
+        log.info("KnowledgeSearch - originalQuery='{}', searchQuery='{}', topK={}, tenantId={}, filter='{}'",
+                query, searchQuery, resolvedTopK, tenantId, filterExpression);
 
         SearchRequest.Builder builder = SearchRequest.builder()
-                .query(query)
+                .query(searchQuery)
                 .topK(resolvedTopK)
                 .similarityThreshold(DEFAULT_SIMILARITY_THRESHOLD)
                 .filterExpression(filterExpression);
@@ -101,6 +124,56 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
             return tenantFilter + " && sourceFormat == '" + sourceFormat.strip() + "'";
         }
         return tenantFilter;
+    }
+
+    private String rewriteQueryWithContext(String originalQuery, ToolContext toolContext) {
+        try {
+            String conversationId = resolveConversationId(toolContext);
+            if (conversationId == null) return originalQuery;
+
+            List<Message> messages = chatMemory.get(conversationId);
+            if (messages == null || messages.isEmpty()) return originalQuery;
+
+            int limit = Math.min(messages.size(), historyWindow * 2);
+            List<Message> recentMessages = messages.subList(messages.size() - limit, messages.size());
+
+            String recentHistory = recentMessages.stream()
+                    .map(m -> m.getMessageType().name() + ": " + truncateText(m.getText(), 200))
+                    .collect(Collectors.joining("\n"));
+
+            String rewritten = lightClient.prompt()
+                    .user("""
+                            Given this conversation history:
+                            %s
+
+                            The user is now searching for: %s
+
+                            Rewrite this as an optimized search query that incorporates relevant context from the conversation. \
+                            Resolve pronouns and references into concrete terms. Return only the rewritten query and nothing else.
+                            """.formatted(recentHistory, originalQuery))
+                    .call()
+                    .content();
+
+            if (rewritten != null && !rewritten.isBlank()) {
+                log.debug("Query rewritten: '{}' -> '{}'", originalQuery, rewritten.trim());
+                return rewritten.trim();
+            }
+        } catch (Exception e) {
+            log.warn("Query rewriting failed, using original query: {}", e.getMessage());
+        }
+        return originalQuery;
+    }
+
+    private String resolveConversationId(ToolContext toolContext) {
+        if (toolContext != null && toolContext.getContext().containsKey("conversationId")) {
+            return (String) toolContext.getContext().get("conversationId");
+        }
+        return null;
+    }
+
+    private static String truncateText(String text, int maxChars) {
+        if (text == null) return "";
+        return text.length() <= maxChars ? text : text.substring(0, maxChars) + "...";
     }
 
     private KnowledgeResult toKnowledgeResult(Document doc) {
