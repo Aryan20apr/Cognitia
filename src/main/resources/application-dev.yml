@@ -111,6 +111,15 @@ ingestion:
     document: pdf,docx,doc,pptx,ppt,txt,md,rtf,html,epub,odt,odp
     tabular: csv,xlsx,xls,ods
     image: png,jpg,jpeg,webp,gif
+  contextual-enrichment:
+    enabled: ${CONTEXTUAL_ENRICHMENT_ENABLED:true}
+    context-chunks: ${CONTEXTUAL_ENRICHMENT_CONTEXT_CHUNKS:5}
+
+cognitia:
+  chat:
+    contextual-search:
+      enabled: ${CONTEXTUAL_SEARCH_ENABLED:true}
+      history-window: ${CONTEXTUAL_SEARCH_HISTORY_WINDOW:5}
 
 analytics:
   usage-events:
