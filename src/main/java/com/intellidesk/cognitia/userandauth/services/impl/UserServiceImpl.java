@@ -57,7 +57,7 @@ public class UserServiceImpl implements UserService {
         String email = userCreationDTO.email();
         String phone = userCreationDTO.phoneNumber();
 
-        if(userRepository.existsByEmailOrPhoneNumber(email, phone)){
+        if(userRepository.existsGloballyByEmailOrPhoneNumber(email, phone)){
             throw new ApiException("User already exists with the provided email or phone number");
         }
 

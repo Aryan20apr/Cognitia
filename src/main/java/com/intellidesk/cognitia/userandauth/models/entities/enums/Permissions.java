@@ -20,7 +20,6 @@ public enum Permissions {
     TENANT_CREATE,
     TENANT_UPDATE,
     TENANT_DELETE,
-    TENANT_GET,
     RESOURCE_CREATE,
     RESOURCE_UPDATE,
     RESOURCE_GET,

@@ -19,7 +19,7 @@ import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
 
 import com.intellidesk.cognitia.ingestion.models.entities.Resource;
 import com.intellidesk.cognitia.ingestion.service.PreprocessingService;
-import com.intellidesk.cognitia.ingestion.service.preprocessingStrategy.PreprocessingStrategy;
+import com.intellidesk.cognitia.ingestion.service.preprocessingStrategy.PreprocessingStrategyFactory;
 
 import org.springframework.core.io.PathResource;
 import jakarta.transaction.Transactional;
@@ -29,17 +29,17 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PreprocessingServiceImpl implements PreprocessingService {
 
-    private final PreprocessingStrategy preprocessingStrategy;
+    private final PreprocessingStrategyFactory preprocessingStrategyFactory;
 
     private VectorStore vectorStore;
 
     private static final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(15)) // connection timeout
+            .connectTimeout(Duration.ofSeconds(15))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    PreprocessingServiceImpl(PreprocessingStrategy preprocessingStrategy,  VectorStore vectorStore){
-        this.preprocessingStrategy = preprocessingStrategy;
+    PreprocessingServiceImpl(PreprocessingStrategyFactory preprocessingStrategyFactory, VectorStore vectorStore) {
+        this.preprocessingStrategyFactory = preprocessingStrategyFactory;
         this.vectorStore = vectorStore;
     }
    
@@ -55,7 +55,8 @@ public class PreprocessingServiceImpl implements PreprocessingService {
 
         Path filePth = getLocalFilePath(url, rawSource.getFormat());
 
-        List<Document> chunks =  preprocessingStrategy.preprocess(new PathResource(filePth), rawSource);
+        List<Document> chunks = preprocessingStrategyFactory.getStrategy(rawSource.getFormat())
+                .preprocess(new PathResource(filePth), rawSource);
 
         vectorStore.add(chunks);
     }

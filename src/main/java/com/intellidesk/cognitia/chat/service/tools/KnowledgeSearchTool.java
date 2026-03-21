@@ -2,8 +2,10 @@ package com.intellidesk.cognitia.chat.service.tools;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -54,21 +56,27 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
             @ToolParam(description = "Optional: filter by document format. "
                     + "Examples: 'pdf', 'docx', 'txt', 'csv'. Leave null to search all formats.",
                     required = false)
-            String sourceFormat) {
+            String sourceFormat,
+
+            ToolContext toolContext) {
+
+        UUID tenantId = resolveTenantId(toolContext);
+        if (tenantId == null) {
+            log.error("KnowledgeSearch aborted — no tenant context available");
+            return List.of();
+        }
 
         int resolvedTopK = (topK != null && topK >= 1 && topK <= 10) ? topK : DEFAULT_TOP_K;
-        String filterExpression = buildFilterExpression(sourceFormat);
+        String filterExpression = buildFilterExpression(tenantId, sourceFormat);
 
-        log.info("KnowledgeSearch - query='{}', topK={}, filter='{}'", query, resolvedTopK, filterExpression);
+        log.info("KnowledgeSearch - query='{}', topK={}, tenantId={}, filter='{}'",
+                query, resolvedTopK, tenantId, filterExpression);
 
         SearchRequest.Builder builder = SearchRequest.builder()
                 .query(query)
                 .topK(resolvedTopK)
-                .similarityThreshold(DEFAULT_SIMILARITY_THRESHOLD);
-
-        if (filterExpression != null) {
-            builder.filterExpression(filterExpression);
-        }
+                .similarityThreshold(DEFAULT_SIMILARITY_THRESHOLD)
+                .filterExpression(filterExpression);
 
         try {
             List<Document> documents = vectorStore.similaritySearch(builder.build());
@@ -80,11 +88,19 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
         }
     }
 
-    private String buildFilterExpression(String sourceFormat) {
-        if (sourceFormat != null && !sourceFormat.isBlank()) {
-            return "sourceFormat == '" + sourceFormat.strip() + "'";
+    private UUID resolveTenantId(ToolContext toolContext) {
+        if (toolContext != null && toolContext.getContext().containsKey("tenantId")) {
+            return UUID.fromString((String) toolContext.getContext().get("tenantId"));
         }
         return null;
+    }
+
+    private String buildFilterExpression(UUID tenantId, String sourceFormat) {
+        String tenantFilter = "tenantId == '" + tenantId.toString() + "'";
+        if (sourceFormat != null && !sourceFormat.isBlank()) {
+            return tenantFilter + " && sourceFormat == '" + sourceFormat.strip() + "'";
+        }
+        return tenantFilter;
     }
 
     private KnowledgeResult toKnowledgeResult(Document doc) {

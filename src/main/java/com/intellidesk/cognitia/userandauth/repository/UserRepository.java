@@ -22,4 +22,7 @@ public interface UserRepository extends JpaRepository<User, UUID>{
     Optional<User> findByEmailWithRoleAndPermissions(@Param("email") String email);
 
     boolean existsByEmailOrPhoneNumber(String email, String phoneNumber);
+
+    @Query(value = "SELECT EXISTS(SELECT 1 FROM users WHERE email = :email OR phone_number = :phoneNumber)", nativeQuery = true)
+    boolean existsGloballyByEmailOrPhoneNumber(@Param("email") String email, @Param("phoneNumber") String phoneNumber);
 }

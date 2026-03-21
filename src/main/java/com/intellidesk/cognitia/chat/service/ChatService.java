@@ -2,6 +2,7 @@ package com.intellidesk.cognitia.chat.service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -220,6 +221,7 @@ public class ChatService {
                 .system(systemPrompt)
                 .user(userMessage)
                 .toolCallbacks(requestTools)
+                .toolContext(Map.of("tenantId", TenantContext.getTenantId().toString()))
                 .call()
                 .entity(CustomChatResponse.class);
         } catch (org.springframework.web.client.HttpClientErrorException
@@ -393,17 +395,19 @@ public class ChatService {
                         }
                     });
 
+                    String tenantIdStr = TenantContext.getTenantId().toString();
                     Flux<ServerSentEvent<String>> contentStream = chatClient.prompt()
                             .advisors(a -> {
                                 a.param(ChatMemory.CONVERSATION_ID, ctx.threadId().toString());
                                 a.param("requestId",
                                         ctx.requestId() != null ? ctx.requestId() : UUID.randomUUID().toString());
                                 a.param("userId", ctx.userId() != null ? ctx.userId() : "");
-                                a.param("tenantId", TenantContext.getTenantId().toString());
+                                a.param("tenantId", tenantIdStr);
                             })
                             .system(finalSystemPrompt)
                             .user(ctx.userMessage())
                             .toolCallbacks(requestTools)
+                            .toolContext(Map.of("tenantId", tenantIdStr))
                             .stream().content()
                             .timeout(Duration.ofSeconds(streamTimeoutSeconds))
                             .doOnNext(chunk -> {

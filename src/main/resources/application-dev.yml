@@ -107,6 +107,10 @@ ingestion:
     name: ${INGESTION_GROUP_NAME:ingestion-group}
   partitions: ${INGESTION_PARTITIONS:1}
   replicas: ${INGESTION_REPLICAS:1}
+  supported-extensions:
+    document: pdf,docx,doc,pptx,ppt,txt,md,rtf,html,epub,odt,odp
+    tabular: csv,xlsx,xls,ods
+    image: png,jpg,jpeg,webp,gif
 
 analytics:
   usage-events:

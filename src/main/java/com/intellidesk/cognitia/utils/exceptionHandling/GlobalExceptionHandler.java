@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.PaymentRequiredException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.TenantNotFoundException;
@@ -42,6 +44,35 @@ public class GlobalExceptionHandler {
                 .code(400)
                 .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<ExceptionApiResponse<?>> handleApiException(ApiException ex) {
+        log.warn("[GlobalExceptionHandler] : [handleApiException] : {}", ex.getMessage());
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message(ex.getMessage())
+                .data(ex.getData())
+                .code(400)
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ExceptionApiResponse<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.warn("[GlobalExceptionHandler] : [handleDataIntegrityViolation] : {}", ex.getMostSpecificCause().getMessage());
+        String message = "A record with the provided details already exists";
+        String rootMsg = ex.getMostSpecificCause().getMessage();
+        if (rootMsg != null && rootMsg.contains("email")) {
+            message = "A user with this email already exists";
+        } else if (rootMsg != null && rootMsg.contains("phone")) {
+            message = "A user with this phone number already exists";
+        }
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message(message)
+                .data(null)
+                .code(409)
+                .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(RuntimeException.class)
