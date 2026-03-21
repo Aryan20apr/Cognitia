@@ -16,9 +16,8 @@ public record UserCreationDTO(
     @Schema(description = "User name", example = "Davey Jones")
     String name,
 
-    @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters")
-    @Schema(description = "Password", example = "StrongPass@123")
+    @Schema(description = "Password (optional for invite flow, user sets it on activation)", example = "StrongPass@123")
     String password,
 
     @NotBlank(message = "Email is required")

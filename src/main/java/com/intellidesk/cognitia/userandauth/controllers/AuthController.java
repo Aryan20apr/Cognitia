@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.notification.OtpService;
+import com.intellidesk.cognitia.userandauth.models.dtos.AcceptInviteRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.ForgotPasswordRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.LoginRequestDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.LoginResponseDTO;
@@ -191,6 +192,20 @@ public class AuthController {
     public ResponseEntity<?> activateAccount(@RequestParam String token) {
         authService.activateAccount(token);
         return ResponseEntity.ok(new ApiResponse<>("Account activated successfully", true, null));
+    }
+
+    @Operation(summary = "Validate invite token", description = "Check if an invitation token is valid and return the associated email")
+    @GetMapping("/invite/validate")
+    public ResponseEntity<?> validateInviteToken(@RequestParam String token) {
+        String email = authService.validateInviteToken(token);
+        return ResponseEntity.ok(new ApiResponse<>("Invitation token is valid", true, Map.of("email", email)));
+    }
+
+    @Operation(summary = "Accept invitation", description = "Set password and activate account via invitation token")
+    @PostMapping("/invite/accept")
+    public ResponseEntity<?> acceptInvite(@Valid @RequestBody AcceptInviteRequestDTO request) {
+        authService.acceptInvite(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok(new ApiResponse<>("Account activated and password set successfully", true, null));
     }
 
     @Operation(summary = "Forgot password", description = "Send password reset OTP to email")

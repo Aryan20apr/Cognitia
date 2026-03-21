@@ -27,4 +27,6 @@ public class Constants {
     public static final String CURRENCY_INR = "INR";
     public static final String CURRENCY_SYMBOL_INR = "\u20B9";
     public static final String FALLBACK_NA = "N/A";
+
+    public static final String INVITATION_ACCEPT_ENDPOINT = "/invite/accept?token=";
 }

@@ -2,14 +2,19 @@ package com.intellidesk.cognitia.userandauth.services.impl;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.intellidesk.cognitia.common.Constants;
+import com.intellidesk.cognitia.notification.EmailService;
+import com.intellidesk.cognitia.notification.OtpService;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserCreationDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserDetailsDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.Permission;
@@ -26,20 +31,24 @@ import com.intellidesk.cognitia.userandauth.services.UserService;
 import com.intellidesk.cognitia.utils.Utils;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private TenantRepository tenantRepository;
-    private RoleRepository roleRepository;
-    private PermissionsRepository permissionsRepository;
+    private final TenantRepository tenantRepository;
+    private final RoleRepository roleRepository;
+    private final PermissionsRepository permissionsRepository;
     private final UserRepository userRepository;
-    // private final UserRepositoryImpl userRepositoryImpl;
     private final PasswordEncoder passwordEncoder;
+    private final OtpService otpService;
+    private final EmailService emailService;
+
+    @Value("${app.frontend-url:http://localhost:5137}")
+    private String frontendUrl;
 
 
     public List<User> getAll() {
@@ -49,7 +58,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDetailsDTO createUser(UserCreationDTO userCreationDTO) {
-        // Log the incoming UserCreationDTO for auditing/diagnostics
+        
        
         log.info("[UserServiceImpl] [createUser] UserCreationDTO received: {}", userCreationDTO);
         User user = new User();
@@ -57,8 +66,11 @@ public class UserServiceImpl implements UserService {
         String email = userCreationDTO.email();
         String phone = userCreationDTO.phoneNumber();
 
-        if(userRepository.existsGloballyByEmailOrPhoneNumber(email, phone)){
-            throw new ApiException("User already exists with the provided email or phone number");
+        if(userRepository.existsGloballyByEmail(email)){
+            throw new ApiException("A user with this email already exists");
+        }
+        if(userRepository.existsGloballyByPhoneNumber(phone)){
+            throw new ApiException("A user with this phone number already exists");
         }
 
         UUID companyId = TenantContext.getTenantId();
@@ -93,11 +105,29 @@ public class UserServiceImpl implements UserService {
         user.setTenant(tenant.get());
         user.setTenantId(tenant.get().getId());
         user.setName(userCreationDTO.name());
-        user.setPassword(
-            passwordEncoder.encode(userCreationDTO.password())
-        );
+
+        String rawPassword = userCreationDTO.password();
+        boolean isInviteFlow = (rawPassword == null || rawPassword.isBlank());
+
+        if (isInviteFlow) {
+            user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        } else {
+            user.setPassword(passwordEncoder.encode(rawPassword));
+        }
 
        User newUser = userRepository.save(user);
+
+       if (isInviteFlow) {
+           String token = otpService.generateActivationToken(newUser.getEmail());
+           String activationLink = frontendUrl + Constants.INVITATION_ACCEPT_ENDPOINT + token;
+           emailService.sendHtml(
+               newUser.getEmail(),
+               "You've been invited to Cognitia",
+               "invitation",
+               Map.of("activationLink", activationLink, "name", newUser.getName())
+           );
+           log.info("[UserServiceImpl] [createUser] Invitation email sent to {}", newUser.getEmail());
+       }
 
        return Utils.mapToUserDetailsDTO(newUser);
     }

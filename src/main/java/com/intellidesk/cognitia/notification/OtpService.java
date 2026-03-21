@@ -109,6 +109,11 @@ public class OtpService {
         return token;
     }
 
+    public String peekActivationToken(String token) {
+        String key = KEY_PREFIX_ACTIVATION + token;
+        return stringRedisTemplate.opsForValue().get(key);
+    }
+
     public String verifyActivationToken(String token) {
         String key = KEY_PREFIX_ACTIVATION + token;
         String email = stringRedisTemplate.opsForValue().getAndDelete(key);

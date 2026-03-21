@@ -104,4 +104,34 @@ public class AuthServiceImpl implements AuthService {
                 .map(user -> Boolean.TRUE.equals(user.getEmailVerified()))
                 .orElse(false);
     }
+
+    @Override
+    public String validateInviteToken(String token) {
+        String email = otpService.peekActivationToken(token);
+        if (email == null) {
+            throw new ApiException("Invalid or expired invitation link");
+        }
+        return email;
+    }
+
+    @Override
+    @Transactional
+    public void acceptInvite(String token, String newPassword) {
+        String email = otpService.verifyActivationToken(token);
+        if (email == null) {
+            throw new ApiException("Invalid or expired invitation link");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ApiException("User not found"));
+
+        if (Boolean.TRUE.equals(user.getEmailVerified())) {
+            throw new ApiException("Account is already activated");
+        }
+
+        user.setEmailVerified(true);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        log.info("[AuthServiceImpl] [acceptInvite] Invite accepted for {}", email);
+    }
 }

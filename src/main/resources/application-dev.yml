@@ -160,6 +160,9 @@ logging:
               advisor: DEBUG
               ChatMemoryAdvisor: DEBUG
 
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+
 storage:
   cloudinary_url: ${CLOUDINARY_URL}
 

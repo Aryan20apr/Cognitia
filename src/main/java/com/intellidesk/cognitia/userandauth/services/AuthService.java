@@ -13,4 +13,8 @@ public interface AuthService {
     void resetPassword(String email, String otp, String newPassword);
 
     boolean isEmailVerified(String email);
+
+    String validateInviteToken(String token);
+
+    void acceptInvite(String token, String newPassword);
 }
