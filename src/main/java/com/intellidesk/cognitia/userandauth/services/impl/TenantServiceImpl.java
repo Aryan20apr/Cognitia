@@ -20,6 +20,7 @@ import com.intellidesk.cognitia.notification.EmailService;
 import com.intellidesk.cognitia.notification.OtpService;
 import com.intellidesk.cognitia.userandauth.models.dtos.RoleCreationDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.TenantDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.TenantUpdateDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserCreationDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserDetailsDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
@@ -171,6 +172,29 @@ public class TenantServiceImpl implements TenantService {
         } catch (Exception e) {
             log.error("[TenantServiceImpl] Failed to send signup OTP to {}: {}", email, e.getMessage());
         }
+    }
+
+    @Override
+    @Transactional
+    public TenantDTO updateTenant(UUID tenantId, TenantUpdateDTO dto) {
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ApiException("Company not found"));
+
+        if (dto.name() != null) {
+            tenant.setName(dto.name());
+        }
+        if (dto.about() != null) {
+            tenant.setAbout(dto.about());
+        }
+        if (dto.domain() != null) {
+            tenant.setDomain(dto.domain());
+        }
+        if (dto.contactEmail() != null) {
+            tenant.setContactEmail(dto.contactEmail());
+        }
+
+        tenantRepository.save(tenant);
+        return mapToDTO(tenant);
     }
 
     private TenantDTO mapToDTO(Tenant tenant){

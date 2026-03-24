@@ -12,5 +12,6 @@ public interface RoleService {
 
     public RoleCreationDTO updateRole(RoleCreationDTO roleCreationDTO);
 
+    public void deleteRole(Integer roleId);
 } 
     
