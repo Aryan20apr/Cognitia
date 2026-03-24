@@ -59,20 +59,58 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ExceptionApiResponse<?>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        log.warn("[GlobalExceptionHandler] : [handleDataIntegrityViolation] : {}", ex.getMostSpecificCause().getMessage());
-        String message = "A record with the provided details already exists";
         String rootMsg = ex.getMostSpecificCause().getMessage();
-        if (rootMsg != null && rootMsg.contains("email")) {
-            message = "A user with this email already exists";
-        } else if (rootMsg != null && rootMsg.contains("phone")) {
-            message = "A user with this phone number already exists";
+        log.warn("[GlobalExceptionHandler] : [handleDataIntegrityViolation] : {}", rootMsg);
+
+        String message;
+        HttpStatus status;
+
+        if (rootMsg != null && rootMsg.contains("violates foreign key constraint")) {
+            message = extractFkMessage(rootMsg);
+            status = HttpStatus.CONFLICT;
+        } else if (rootMsg != null && rootMsg.contains("violates unique constraint")) {
+            message = extractUniqueMessage(rootMsg);
+            status = HttpStatus.CONFLICT;
+        } else if (rootMsg != null && rootMsg.contains("violates not-null constraint")) {
+            message = "A required field is missing";
+            status = HttpStatus.BAD_REQUEST;
+        } else {
+            message = "Data integrity violation";
+            status = HttpStatus.CONFLICT;
         }
+
         ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
                 .message(message)
                 .data(null)
-                .code(409)
+                .code(status.value())
                 .build();
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+        return ResponseEntity.status(status).body(response);
+    }
+
+    private String extractFkMessage(String rootMsg) {
+        if (rootMsg.contains("is still referenced from table")) {
+            int idx = rootMsg.indexOf("is still referenced from table");
+            String tail = rootMsg.substring(idx);
+            String referencedTable = tail.replaceAll("is still referenced from table \"?(\\w+)\"?.*", "$1");
+            return "Cannot delete because it is still referenced by " + referencedTable;
+        }
+        return "Cannot perform operation due to existing references";
+    }
+
+    private String extractUniqueMessage(String rootMsg) {
+        if (rootMsg.contains("email")) {
+            return "A user with this email already exists";
+        } else if (rootMsg.contains("phone")) {
+            return "A user with this phone number already exists";
+        }
+        String detail = "";
+        int detailIdx = rootMsg.indexOf("Detail:");
+        if (detailIdx >= 0) {
+            detail = rootMsg.substring(detailIdx + 7).trim();
+        }
+        return detail.isEmpty()
+                ? "A record with the provided details already exists"
+                : "Duplicate value: " + detail;
     }
 
     @ExceptionHandler(RuntimeException.class)

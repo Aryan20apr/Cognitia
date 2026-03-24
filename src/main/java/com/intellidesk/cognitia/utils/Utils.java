@@ -30,7 +30,6 @@ public class Utils {
             user.getPhoneNumber(),
             roleName,
             user.getTenant() != null ? user.getTenant().getId().toString() : null,
-            roleName, // This appears to be a duplicate field in the DTO
             permissionNames
         );
     }
