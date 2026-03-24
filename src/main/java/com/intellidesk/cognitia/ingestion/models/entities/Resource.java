@@ -49,6 +49,8 @@ public class Resource extends TenantAwareEntity{
     @Column(nullable = false, unique = true)
     private String assetId;
 
+    @Column(unique = true)
+    private String publicId;
 
     @Column(nullable = false, unique = true)
     private String name;

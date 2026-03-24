@@ -1,8 +1,10 @@
 package com.intellidesk.cognitia.ingestion.service.impl;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -11,10 +13,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.cloudinary.Cloudinary;
 import com.intellidesk.cognitia.analytics.service.QuotaService;
 import com.intellidesk.cognitia.ingestion.models.dtos.CloudinaryUploadResult;
 import com.intellidesk.cognitia.ingestion.models.dtos.ResourceDetails;
 import com.intellidesk.cognitia.ingestion.models.dtos.ResourceMetadata;
+import com.intellidesk.cognitia.ingestion.models.dtos.ResourceUpdateDTO;
 import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
 import com.intellidesk.cognitia.ingestion.models.entities.Resource;
 import com.intellidesk.cognitia.ingestion.models.enums.IngestionStatus;
@@ -27,6 +31,7 @@ import com.intellidesk.cognitia.ingestion.service.uploadStrategy.FileUploadStrat
 import com.intellidesk.cognitia.ingestion.utils.ResourceMapper;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.utils.exceptionHandling.QuotaExceededException;
+import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
 
 import lombok.AllArgsConstructor;
@@ -42,6 +47,8 @@ public class ResourceServiceImpl implements ResourceService {
     private final ResourceRepository resourceRepository;
     private final ResourceMapper mapper;
     private final QuotaService quotaService;
+    private final Cloudinary cloudinary;
+    private final VectorStore vectorStore;
 
     @Override
     @Transactional
@@ -60,6 +67,7 @@ public class ResourceServiceImpl implements ResourceService {
            
            Resource rawSouce = Resource.builder()
                 .assetId(cloudinaryUploadResult.assetId())
+                .publicId(cloudinaryUploadResult.publicId())
                 .url(cloudinaryUploadResult.url())
                 .name(resourceMetadata.name())
                 .description(resourceMetadata.description())
@@ -116,6 +124,75 @@ public class ResourceServiceImpl implements ResourceService {
     Page<Resource> pageResult = resourceRepository.findAll(pageable);
 
     return pageResult.map(res -> mapper.toDto(res));
+    }
+
+    @Override
+    @Transactional
+    public ResourceDetails updateResource(String assetId, ResourceUpdateDTO dto) {
+        Resource resource = resourceRepository.findByAssetId(assetId)
+                .orElseThrow(() -> new ApiException("Resource not found"));
+
+        if (dto.name() != null) {
+            resource.setName(dto.name());
+        }
+        if (dto.description() != null) {
+            resource.setDescription(dto.description());
+        }
+
+        Resource updated = resourceRepository.save(resource);
+        return mapper.toDto(updated);
+    }
+
+    @Override
+    @Transactional
+    public void deleteResource(String assetId) {
+        Resource resource = resourceRepository.findByAssetId(assetId)
+                .orElseThrow(() -> new ApiException("Resource not found"));
+
+        deleteFromCloudinary(resource);
+        deleteEmbeddings(resource);
+
+        resourceRepository.delete(resource);
+        log.info("Resource deleted: assetId={}, name={}", assetId, resource.getName());
+    }
+
+    private void deleteFromCloudinary(Resource resource) {
+        try {
+            String resourceType = resolveCloudinaryResourceType(resource.getFormat());
+            String publicId = resource.getPublicId();
+            if (publicId == null || publicId.isBlank()) {
+                log.warn("No publicId stored for resource (assetId={}), skipping Cloudinary deletion", resource.getAssetId());
+                return;
+            }
+            cloudinary.uploader().destroy(
+                    publicId,
+                    Map.of("resource_type", resourceType, "invalidate", true)
+            );
+        } catch (Exception e) {
+            log.error("Failed to delete resource from Cloudinary (assetId={}): {}", resource.getAssetId(), e.getMessage());
+            throw new ApiException("Failed to delete resource from storage", e.getMessage());
+        }
+    }
+
+    private void deleteEmbeddings(Resource resource) {
+        try {
+            String filterExpression = "sourceId == '" + resource.getResId().toString() + "'";
+            vectorStore.delete(filterExpression);
+            log.info("Embeddings deleted for resource: resId={}", resource.getResId());
+        } catch (Exception e) {
+            log.error("Failed to delete embeddings for resource (resId={}): {}", resource.getResId(), e.getMessage());
+        }
+    }
+
+    private String resolveCloudinaryResourceType(String format) {
+        if (format == null) return "raw";
+        String ext = format.trim().toLowerCase();
+        if (ext.startsWith(".")) ext = ext.substring(1);
+        return switch (ext) {
+            case "jpg", "jpeg", "png", "gif", "webp", "bmp", "svg" -> "image";
+            case "mp4", "webm", "mov", "avi" -> "video";
+            default -> "raw";
+        };
     }
 
     
