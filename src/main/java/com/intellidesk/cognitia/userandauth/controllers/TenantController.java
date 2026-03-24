@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,12 +15,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.intellidesk.cognitia.ingestion.models.dtos.ApiResponse;
 import com.intellidesk.cognitia.userandauth.models.dtos.TenantDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.TenantUpdateDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
 import com.intellidesk.cognitia.userandauth.services.TenantService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 import lombok.AllArgsConstructor;
 
@@ -59,6 +62,14 @@ public class TenantController {
        List<Tenant> companies = tenantService.getAllCompanies();
        ApiResponse<List<Tenant>> apiResponse = new ApiResponse<>("Companies fetched", true, companies);
        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    }
+
+    @Operation(summary = "Update organization settings")
+    @PatchMapping
+    @PreAuthorize("hasAuthority('PERM_TENANT_UPDATE')")
+    public ResponseEntity<ApiResponse<TenantDTO>> updateCompany(@Valid @RequestBody TenantUpdateDTO tenantUpdateDTO) {
+        TenantDTO updated = tenantService.updateTenant(TenantContext.getTenantId(), tenantUpdateDTO);
+        return ResponseEntity.ok(new ApiResponse<>("Company updated successfully", true, updated));
     }
     
 }

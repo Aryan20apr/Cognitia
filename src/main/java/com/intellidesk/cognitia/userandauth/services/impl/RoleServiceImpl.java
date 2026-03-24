@@ -14,6 +14,7 @@ import com.intellidesk.cognitia.userandauth.models.entities.Permission;
 import com.intellidesk.cognitia.userandauth.models.entities.Role;
 import com.intellidesk.cognitia.userandauth.repository.PermissionsRepository;
 import com.intellidesk.cognitia.userandauth.repository.RoleRepository;
+import com.intellidesk.cognitia.userandauth.repository.UserRepository;
 import com.intellidesk.cognitia.userandauth.services.RoleService;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 
@@ -26,6 +27,7 @@ public class RoleServiceImpl implements RoleService{
     
     private final RoleRepository roleRepository;
     private final PermissionsRepository permissionRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public RoleCreationDTO createRole(RoleCreationDTO roleCreationDTO) {
@@ -103,6 +105,19 @@ public class RoleServiceImpl implements RoleService{
         Role updatedRole = roleRepository.save(role);
         roleCreationDTO.setRoleId(updatedRole.getRoleId());
         return roleCreationDTO;
+    }
+
+    @Override
+    @Transactional
+    public void deleteRole(Integer roleId) {
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new ApiException("Role not found"));
+
+        if (userRepository.existsByRole_RoleId(roleId)) {
+            throw new ApiException("Cannot delete role that is currently assigned to users");
+        }
+
+        roleRepository.delete(role);
     }
     
 }

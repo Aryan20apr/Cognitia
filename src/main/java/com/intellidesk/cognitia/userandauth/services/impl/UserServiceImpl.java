@@ -17,6 +17,7 @@ import com.intellidesk.cognitia.notification.EmailService;
 import com.intellidesk.cognitia.notification.OtpService;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserCreationDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserDetailsDTO;
+import com.intellidesk.cognitia.userandauth.models.dtos.UserUpdateDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.Permission;
 import com.intellidesk.cognitia.userandauth.models.entities.Role;
 import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
@@ -150,5 +151,56 @@ public class UserServiceImpl implements UserService {
        }).collect(Collectors.toList());
 
        return userDetailsDTOs;
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsDTO updateSelf(UUID userId, UserUpdateDTO dto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException("User not found"));
+
+        if (dto.name() != null) {
+            user.setName(dto.name());
+        }
+        if (dto.phoneNumber() != null) {
+            if (!dto.phoneNumber().equals(user.getPhoneNumber())
+                    && userRepository.existsGloballyByPhoneNumber(dto.phoneNumber())) {
+                throw new ApiException("A user with this phone number already exists");
+            }
+            user.setPhoneNumber(dto.phoneNumber());
+        }
+
+        User updated = userRepository.save(user);
+        return Utils.mapToUserDetailsDTO(updated);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException("User not found"));
+
+        Tenant tenant = tenantRepository.findById(user.getTenantId())
+                .orElseThrow(() -> new ApiException("Tenant not found"));
+
+        if (tenant.getRootUser() != null && tenant.getRootUser().getId().equals(userId)) {
+            throw new ApiException("Cannot delete the root user of the organization");
+        }
+
+        userRepository.delete(user);
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsDTO assignRole(UUID userId, Integer roleId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException("User not found"));
+
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new ApiException("Role not found"));
+
+        user.setRole(role);
+        User updated = userRepository.save(user);
+        return Utils.mapToUserDetailsDTO(updated);
     }
 }

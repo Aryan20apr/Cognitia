@@ -7,6 +7,7 @@ public enum Permissions {
     USER_READ,
     USER_UPDATE,
     USER_DELETE,
+    USER_ASSIGN_ROLE,
     ROLE_CREATE,
     ROLE_READ,
     ROLE_UPDATE,
