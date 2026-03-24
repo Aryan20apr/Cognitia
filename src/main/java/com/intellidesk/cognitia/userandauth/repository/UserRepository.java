@@ -28,4 +28,6 @@ public interface UserRepository extends JpaRepository<User, UUID>{
 
     @Query(value = "SELECT EXISTS(SELECT 1 FROM users WHERE phone_number = :phoneNumber)", nativeQuery = true)
     boolean existsGloballyByPhoneNumber(@Param("phoneNumber") String phoneNumber);
+
+    boolean existsByRole_RoleId(Integer roleId);
 }

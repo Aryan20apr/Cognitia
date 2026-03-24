@@ -28,8 +28,6 @@ public class UserDetailsDTO{
     String role; 
     @Schema(description = "Company id")
     String companyId; 
-    @Schema(description = "Role display (duplicate field)")
-    String Role; 
     @Schema(description = "Granted permissions")
     List<String> permissions;  
     
