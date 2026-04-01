@@ -128,12 +128,6 @@ analytics:
     topic:
       name: ${USAGE_EVENTS_TOPIC_NAME:chat-usage-events}  
 
-# Kafka Configuration
-# logging.level.org.apache.kafka.clients.consumer.internals.ConsumerCoordinator=DEBUG
-# logging.level.org.apache.kafka.clients.consumer=DEBUG
-# logging.level.org.springframework.kafka.listener=DEBUG
-# logging.level.org.springframework.kafka.consumer=DEBUG
-
 # idempotency only works for retries from the same producer instance.
 
 
@@ -142,32 +136,6 @@ analytics:
 #   base-url: ${GROQ_BASE_URL:https://api.groq.com/openai}
 #   chat:
 #     model: ${GROQ_CHAT_MODEL:llama-3.3-70b-versatile}
-
-
-logging:
-  level:
-    '[com.intellidesk.cognitia.userandauth]': DEBUG
-    '[org.springframework.ai.openai]': DEBUG
-    '[org.springframework.ai.chat]': DEBUG
-  
-    org:
-      apache:
-        kafka: OFF
-      aspectj:
-        weaver: DEBUG
-      springframework:
-        aop: DEBUG
-        tools: DEBUG
-        ai:
-          client:
-            chat: DEBUG
-          tool: DEBUG
-          observation: DEBUG
-          chat:
-            memory: DEBUG
-            client:
-              advisor: DEBUG
-              ChatMemoryAdvisor: DEBUG
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}

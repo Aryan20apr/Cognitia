@@ -180,7 +180,6 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
         Map<String, Object> metadata = doc.getMetadata();
         return new KnowledgeResult(
                 doc.getText(),
-                (String) metadata.get("sourceId"),
                 (String) metadata.get("sourceName"),
                 (String) metadata.get("sourceUrl"),
                 (String) metadata.get("sourceFormat")
@@ -223,10 +222,10 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
             return results.stream()
                     .map(r -> new SourceReference(
                             "knowledge",
-                            r.sourceName() != null ? r.sourceName() : r.sourceId(),
+                            r.sourceName(),
                             null,
                             null,
-                            r.sourceId(),
+                            null,
                             r.sourceFormat(),
                             null))
                     .toList();
@@ -238,7 +237,6 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
 
     public record KnowledgeResult(
             String content,
-            String sourceId,
             String sourceName,
             String sourceUrl,
             String sourceFormat

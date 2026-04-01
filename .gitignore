@@ -44,5 +44,6 @@ jwt-keys/
 
 docs/
 
+logs/
 
 .cursor

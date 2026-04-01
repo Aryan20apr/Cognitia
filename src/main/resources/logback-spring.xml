@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <property name="LOG_PATH" value="${LOG_PATH:-./logs}"/>
+    <property name="LOG_FILE" value="${LOG_PATH}/cognitia"/>
+
+    <!-- Console — human-readable, colored -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Rolling text file — human-readable, 50MB per file, 30 days retained, 1GB cap -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Rolling JSON file — structured, machine-parseable via jq -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}-json.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FILE}-json.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+    </appender>
+
+    <!-- Application loggers -->
+    <logger name="com.intellidesk.cognitia.userandauth" level="DEBUG"/>
+    <logger name="org.springframework.ai.openai" level="DEBUG"/>
+    <logger name="org.springframework.ai.chat" level="DEBUG"/>
+    <logger name="org.springframework.aop" level="DEBUG"/>
+    <logger name="org.springframework.tools" level="DEBUG"/>
+    <logger name="org.springframework.ai.client.chat" level="DEBUG"/>
+    <logger name="org.springframework.ai.tool" level="DEBUG"/>
+    <logger name="org.springframework.ai.observation" level="DEBUG"/>
+    <logger name="org.springframework.ai.chat.memory" level="DEBUG"/>
+    <logger name="org.springframework.ai.chat.client.advisor" level="DEBUG"/>
+    <logger name="org.springframework.ai.chat.client.ChatMemoryAdvisor" level="DEBUG"/>
+    <logger name="org.aspectj.weaver" level="DEBUG"/>
+
+    <!-- Suppress noisy loggers -->
+    <logger name="org.apache.kafka" level="OFF"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="JSON_FILE"/>
+    </root>
+</configuration>
