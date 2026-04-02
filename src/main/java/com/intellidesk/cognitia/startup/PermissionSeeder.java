@@ -43,7 +43,7 @@ public class PermissionSeeder implements CommandLineRunner {
                 });
         }
 
-        log.info("✅ Permissions seeded successfully.");
+        log.info("Permissions seeded successfully.");
     }
 }
 

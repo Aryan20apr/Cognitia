@@ -43,7 +43,7 @@ public class AnalyticsDataSeeder implements CommandLineRunner {
     public void run(String... args) throws Exception {
         // 👇 Skip if already seeded
         if (planRepository.count() > 0) {
-            System.out.println("✅ Analytics data already seeded. Skipping...");
+            System.out.println(" Analytics data already seeded. Skipping...");
             return;
         }
 
@@ -85,7 +85,7 @@ public class AnalyticsDataSeeder implements CommandLineRunner {
         tenantQuota.setTenantId(UUID.fromString("0fad3c60-26d6-436e-bbc4-6f3842e757ff"));
         tenantQuotaRepository.save(tenantQuota);
 
-        log.info("✅ Seeded TenantQuota for tenant [%s] under plan [%s]%n",
+        log.info(" Seeded TenantQuota for tenant [%s] under plan [%s]%n",
                 tenantQuota.getTenantId(), standardPlan.getName());
     }
 }
