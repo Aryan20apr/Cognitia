@@ -93,5 +93,15 @@ public class UserController {
         UserDetailsDTO updated = userService.assignRole(userId, roleId);
         return ResponseEntity.ok(new ApiResponse<>("Role assigned successfully", true, updated));
     }
+
+    @Operation(summary = "Assign departments to a user")
+    @PatchMapping("/{userId}/departments")
+    @PreAuthorize("hasAuthority('PERM_DEPARTMENT_MANAGE')")
+    public ResponseEntity<ApiResponse<UserDetailsDTO>> assignDepartments(
+            @PathVariable UUID userId,
+            @RequestBody List<UUID> departmentIds) {
+        UserDetailsDTO updated = userService.assignDepartments(userId, departmentIds);
+        return ResponseEntity.ok(new ApiResponse<>("Departments assigned successfully", true, updated));
+    }
     
 }

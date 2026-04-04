@@ -29,6 +29,7 @@ import com.intellidesk.cognitia.userandauth.models.entities.enums.RoleEnum;
 import com.intellidesk.cognitia.userandauth.repository.TenantRepository;
 import com.intellidesk.cognitia.userandauth.repository.UserRepository;
 import com.intellidesk.cognitia.userandauth.services.TenantService;
+import com.intellidesk.cognitia.userandauth.services.TenantSetupService;
 import com.intellidesk.cognitia.userandauth.services.UserService;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 
@@ -48,6 +49,7 @@ public class TenantServiceImpl implements TenantService {
     private final OtpService otpService;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final TenantSetupService tenantSetupService;
 
     @Override
     public Boolean checkIfExists(String id) {
@@ -71,15 +73,21 @@ public class TenantServiceImpl implements TenantService {
                         .users(new HashSet<>())
                         .domain(tenantDTO.getDomain()).build();
         Tenant newTenant = tenantRepository.save(tenant);
+
+        tenantSetupService.seedDefaults(newTenant.getId());
+
         RoleCreationDTO roleCreationDTO = new RoleCreationDTO();
         roleCreationDTO.setName(RoleEnum.SUPER_ADMIN.toString());
+        roleCreationDTO.setClearanceLevelId(
+            tenantSetupService.getHighestClearanceLevelId(newTenant.getId()).orElse(null));
         UserCreationDTO userCreationDTO = new UserCreationDTO(
             tenantDTO.getAdminName(),
             tenantDTO.getAdminPassword(),
             tenantDTO.getAdminEmail(),
             newTenant.getId().toString(),
             tenantDTO.getPhoneNumber(),
-            roleCreationDTO);
+            roleCreationDTO,
+            null);
         
         UserDetailsDTO user = userService.createUser(userCreationDTO);
         User tempUser = new User();
@@ -88,7 +96,6 @@ public class TenantServiceImpl implements TenantService {
         tempUser.setName(user.getName());
         tempUser.setPhoneNumber(user.getPhoneNumber());
         newTenant.setRootUser(tempUser);
-
 
         assignDefaultPlan(newTenant.getId());
 

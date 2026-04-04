@@ -18,12 +18,16 @@ import com.intellidesk.cognitia.notification.OtpService;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserCreationDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserDetailsDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserUpdateDTO;
+import com.intellidesk.cognitia.userandauth.models.entities.ClassificationLevel;
+import com.intellidesk.cognitia.userandauth.models.entities.Department;
 import com.intellidesk.cognitia.userandauth.models.entities.Permission;
 import com.intellidesk.cognitia.userandauth.models.entities.Role;
 import com.intellidesk.cognitia.userandauth.models.entities.Tenant;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.models.entities.enums.RoleEnum;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
+import com.intellidesk.cognitia.userandauth.repository.ClassificationLevelRepository;
+import com.intellidesk.cognitia.userandauth.repository.DepartmentRepository;
 import com.intellidesk.cognitia.userandauth.repository.PermissionsRepository;
 import com.intellidesk.cognitia.userandauth.repository.RoleRepository;
 import com.intellidesk.cognitia.userandauth.repository.TenantRepository;
@@ -44,6 +48,8 @@ public class UserServiceImpl implements UserService {
     private final RoleRepository roleRepository;
     private final PermissionsRepository permissionsRepository;
     private final UserRepository userRepository;
+    private final ClassificationLevelRepository classificationLevelRepository;
+    private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final EmailService emailService;
@@ -92,6 +98,12 @@ public class UserServiceImpl implements UserService {
             role.setPermissions(new HashSet<>(permissions));
             role.setRoleName(userCreationDTO.roleDetails().getName());
             role.setTenantId(tenant.get().getId());
+            UUID clearanceLevelId = userCreationDTO.roleDetails().getClearanceLevelId();
+            if (clearanceLevelId != null) {
+                ClassificationLevel level = classificationLevelRepository.findById(clearanceLevelId)
+                    .orElseThrow(() -> new ApiException("Classification level not found: " + clearanceLevelId));
+                role.setClearanceLevel(level);
+            }
             roleRepository.save(role);
         } else{
            Optional<Role> optionalRole =  roleRepository.findById(userCreationDTO.roleDetails().getRoleId());
@@ -106,6 +118,11 @@ public class UserServiceImpl implements UserService {
         user.setTenant(tenant.get());
         user.setTenantId(tenant.get().getId());
         user.setName(userCreationDTO.name());
+
+        if (userCreationDTO.departmentIds() != null && !userCreationDTO.departmentIds().isEmpty()) {
+            List<Department> departments = departmentRepository.findAllById(userCreationDTO.departmentIds());
+            user.setDepartments(new HashSet<>(departments));
+        }
 
         String rawPassword = userCreationDTO.password();
         boolean isInviteFlow = (rawPassword == null || rawPassword.isBlank());
@@ -200,6 +217,22 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ApiException("Role not found"));
 
         user.setRole(role);
+        User updated = userRepository.save(user);
+        return Utils.mapToUserDetailsDTO(updated);
+    }
+
+    @Override
+    @Transactional
+    public UserDetailsDTO assignDepartments(UUID userId, List<UUID> departmentIds) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ApiException("User not found"));
+
+        List<Department> departments = departmentRepository.findAllById(departmentIds);
+        if (departments.size() != departmentIds.size()) {
+            throw new ApiException("One or more departments not found");
+        }
+
+        user.setDepartments(new HashSet<>(departments));
         User updated = userRepository.save(user);
         return Utils.mapToUserDetailsDTO(updated);
     }

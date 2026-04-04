@@ -33,7 +33,9 @@ public enum Permissions {
     ANALYTICS_READ,
     TENANT_LIST,
     QUOTA_READ,
-    QUOTA_ADMIN;
+    QUOTA_ADMIN,
+    DEPARTMENT_MANAGE,
+    CLASSIFICATION_MANAGE;
 
     private static final Set<Permissions> PLATFORM_LEVEL = Set.of(
             PLAN_CREATE, PLAN_UPDATE, PLAN_DELETE, PLAN_READ,
