@@ -1,6 +1,8 @@
 package com.intellidesk.cognitia.ingestion.controller;
 
 
+import java.util.UUID;
+
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -44,9 +46,13 @@ public class RawResourceController {
     @PostMapping(value = "/ingest", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('PERM_RESOURCE_CREATE')")
     public ResponseEntity<?> ingestResource(@RequestPart("file") MultipartFile file,
-            @RequestPart("name") String name, @RequestPart("description") String description) {
+            @RequestPart("name") String name, @RequestPart("description") String description,
+            @RequestPart(value = "departmentId", required = false) String departmentId,
+            @RequestPart(value = "classificationLevelId", required = false) String classificationLevelId) {
 
-        ResourceMetadata metadata = new ResourceMetadata(name, description);
+        UUID deptId = departmentId != null && !departmentId.isBlank() ? UUID.fromString(departmentId) : null;
+        UUID classId = classificationLevelId != null && !classificationLevelId.isBlank() ? UUID.fromString(classificationLevelId) : null;
+        ResourceMetadata metadata = new ResourceMetadata(name, description, deptId, classId);
         CloudinaryUploadResult res = resourceService.uploadRawResource(file, metadata);
         ApiResponse<CloudinaryUploadResult> apiResponse = ApiResponse.<CloudinaryUploadResult>builder()
                 .message("File uploaded sccessfully").data(res).success(true).build();
