@@ -35,7 +35,7 @@ public class DepartmentController {
     @PostMapping
     @PreAuthorize("hasAuthority('PERM_DEPARTMENT_MANAGE')")
     public ResponseEntity<ApiResponse<DepartmentDTO>> create(@RequestBody DepartmentDTO dto) {
-        DepartmentDTO created = departmentService.create(dto.name());
+        DepartmentDTO created = departmentService.create(dto);
         return new ResponseEntity<>(new ApiResponse<>("Department created", true, created), HttpStatus.CREATED);
     }
 
@@ -51,7 +51,7 @@ public class DepartmentController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('PERM_DEPARTMENT_MANAGE')")
     public ResponseEntity<ApiResponse<DepartmentDTO>> update(@PathVariable UUID id, @RequestBody DepartmentDTO dto) {
-        DepartmentDTO updated = departmentService.update(id, dto.name());
+        DepartmentDTO updated = departmentService.update(id, dto);
         return ResponseEntity.ok(new ApiResponse<>("Department updated", true, updated));
     }
 

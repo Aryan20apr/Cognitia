@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.intellidesk.cognitia.common.Constants;
 import com.intellidesk.cognitia.notification.EmailService;
 import com.intellidesk.cognitia.notification.OtpService;
+import com.intellidesk.cognitia.userandauth.models.dtos.DepartmentDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserCreationDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserDetailsDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserUpdateDTO;
@@ -164,6 +165,9 @@ public class UserServiceImpl implements UserService {
             userDetailsDTO.setPhoneNumber(user.getPhoneNumber());
             userDetailsDTO.setCompanyId(user.getTenantId() != null ? user.getTenantId().toString() : null);
             userDetailsDTO.setRole(user.getRole() != null ? user.getRole().getRoleName() : null);
+            userDetailsDTO.setDepartments(user.getDepartments().stream()
+                .map(department -> new DepartmentDTO(department.getId(), department.getName(), department.getDescription()))
+                .collect(Collectors.toSet()));
             return userDetailsDTO;
        }).collect(Collectors.toList());
 

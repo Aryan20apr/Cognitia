@@ -23,12 +23,15 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional
-    public DepartmentDTO create(String name) {
+    public DepartmentDTO create(DepartmentDTO dto) {
         UUID tenantId = TenantContext.getTenantId();
-        if (departmentRepository.existsByTenantIdAndName(tenantId, name)) {
+        if (departmentRepository.existsByTenantIdAndName(tenantId, dto.name())) {
             throw new ApiException("Department with this name already exists");
         }
-        Department dept = Department.builder().name(name).build();
+        Department dept = Department.builder()
+            .name(dto.name())
+            .description(dto.description())
+            .build();
         dept.setTenantId(tenantId);
         Department saved = departmentRepository.save(dept);
         return toDTO(saved);
@@ -45,17 +48,18 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional
-    public DepartmentDTO update(UUID id, String name) {
+    public DepartmentDTO update(UUID id, DepartmentDTO dto) {
         Department dept = departmentRepository.findById(id)
             .orElseThrow(() -> new ApiException("Department not found"));
         UUID tenantId = TenantContext.getTenantId();
         if (!dept.getTenantId().equals(tenantId)) {
             throw new ApiException("Department not found");
         }
-        if (departmentRepository.existsByTenantIdAndName(tenantId, name)) {
+        if (!dept.getName().equals(dto.name()) && departmentRepository.existsByTenantIdAndName(tenantId, dto.name())) {
             throw new ApiException("Department with this name already exists");
         }
-        dept.setName(name);
+        dept.setName(dto.name());
+        dept.setDescription(dto.description());
         return toDTO(departmentRepository.save(dept));
     }
 

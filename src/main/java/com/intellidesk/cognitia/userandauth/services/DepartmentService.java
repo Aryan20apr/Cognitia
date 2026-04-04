@@ -7,11 +7,11 @@ import com.intellidesk.cognitia.userandauth.models.dtos.DepartmentDTO;
 
 public interface DepartmentService {
 
-    DepartmentDTO create(String name);
+    DepartmentDTO create(DepartmentDTO dto);
 
     List<DepartmentDTO> getAll();
 
-    DepartmentDTO update(UUID id, String name);
+    DepartmentDTO update(UUID id, DepartmentDTO dto);
 
     void delete(UUID id);
 }
