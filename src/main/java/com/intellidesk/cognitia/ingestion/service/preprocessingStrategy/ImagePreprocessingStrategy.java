@@ -26,6 +26,7 @@ public class ImagePreprocessingStrategy implements PreprocessingStrategy {
 
     private final ChatModel chatModel;
     private final MeteringIngestService meteringIngestService;
+    private final AccessMetadataResolver accessMetadataResolver;
 
     private static final String VISION_PROMPT =
             "Describe everything visible in this image in detail. "
@@ -33,9 +34,11 @@ public class ImagePreprocessingStrategy implements PreprocessingStrategy {
             + "table contents, and visual elements. "
             + "Be thorough and structured in your description.";
 
-    public ImagePreprocessingStrategy(ChatModel chatModel, MeteringIngestService meteringIngestService) {
+    public ImagePreprocessingStrategy(ChatModel chatModel, MeteringIngestService meteringIngestService,
+                                      AccessMetadataResolver accessMetadataResolver) {
         this.chatModel = chatModel;
         this.meteringIngestService = meteringIngestService;
+        this.accessMetadataResolver = accessMetadataResolver;
     }
 
     @Override
@@ -43,6 +46,8 @@ public class ImagePreprocessingStrategy implements PreprocessingStrategy {
             com.intellidesk.cognitia.ingestion.models.entities.Resource rawSource) {
 
         log.info("Starting image preprocessing for resource: {}", rawSource.getResId());
+
+        accessMetadataResolver.ensureDefaults(rawSource);
 
         try {
             String mimeType = resolveMimeType(rawSource.getFormat());
@@ -70,6 +75,8 @@ public class ImagePreprocessingStrategy implements PreprocessingStrategy {
             metadata.put("fileName", rawSource.getName());
             metadata.put("ingestionTimestamp", Instant.now().toString());
             metadata.put("contentType", mimeType);
+            metadata.put("department", accessMetadataResolver.getDepartmentName(rawSource));
+            metadata.put("classificationRank", accessMetadataResolver.getClassificationRank(rawSource));
 
             return List.of(new Document(description, metadata));
 
