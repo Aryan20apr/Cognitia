@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import com.intellidesk.cognitia.ingestion.models.entities.IngestionJob;
 
 import com.intellidesk.cognitia.ingestion.models.entities.Resource;
+import com.intellidesk.cognitia.ingestion.repository.ResourceRepository;
 import com.intellidesk.cognitia.ingestion.service.PreprocessingService;
 import com.intellidesk.cognitia.ingestion.service.preprocessingStrategy.PreprocessingStrategyFactory;
 
@@ -30,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PreprocessingServiceImpl implements PreprocessingService {
 
     private final PreprocessingStrategyFactory preprocessingStrategyFactory;
+    private final ResourceRepository resourceRepository;
 
     private VectorStore vectorStore;
 
@@ -38,8 +40,11 @@ public class PreprocessingServiceImpl implements PreprocessingService {
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    PreprocessingServiceImpl(PreprocessingStrategyFactory preprocessingStrategyFactory, VectorStore vectorStore) {
+    PreprocessingServiceImpl(PreprocessingStrategyFactory preprocessingStrategyFactory,
+                             ResourceRepository resourceRepository,
+                             VectorStore vectorStore) {
         this.preprocessingStrategyFactory = preprocessingStrategyFactory;
+        this.resourceRepository = resourceRepository;
         this.vectorStore = vectorStore;
     }
    
@@ -47,9 +52,10 @@ public class PreprocessingServiceImpl implements PreprocessingService {
     @Transactional(Transactional.TxType.REQUIRES_NEW)
     public void preprocessFile(IngestionJob ingestoionOutbox){
 
-        Resource rawSource = ingestoionOutbox.getSource();
-        
-        // Use ingestion outbox instead
+        Resource rawSource = resourceRepository.findById(ingestoionOutbox.getSource().getResId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Resource not found: " + ingestoionOutbox.getSource().getResId()));
+
         String url = rawSource.getUrl();
         log.info("Starting preprocessing for URL: {}", url);
 
