@@ -15,4 +15,5 @@ public interface UserService {
     public UserDetailsDTO updateSelf(UUID userId, UserUpdateDTO userUpdateDTO);
     public void deleteUser(UUID userId);
     public UserDetailsDTO assignRole(UUID userId, Integer roleId);
+    public UserDetailsDTO assignDepartments(UUID userId, List<UUID> departmentIds);
 }

@@ -15,6 +15,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.intellidesk.cognitia.ingestion.service.transformer.ContextualChunkEnricher;
 import com.intellidesk.cognitia.ingestion.service.transformer.DocumentContextExtractor;
+import com.intellidesk.cognitia.userandauth.repository.ClassificationLevelRepository;
+import com.intellidesk.cognitia.userandauth.repository.DepartmentRepository;
 
 @Configuration
 @EnableScheduling
@@ -40,8 +42,10 @@ public class IngestionConfig {
     @Bean
     public DocumentContextExtractor documentContextExtractor(
             @Qualifier("lightClient") ChatClient lightClient,
-            @Value("${ingestion.contextual-enrichment.context-chunks:5}") int contextChunks) {
-        return new DocumentContextExtractor(lightClient, contextChunks);
+            @Value("${ingestion.contextual-enrichment.context-chunks:5}") int contextChunks,
+            DepartmentRepository departmentRepository,
+            ClassificationLevelRepository classificationLevelRepository) {
+        return new DocumentContextExtractor(lightClient, contextChunks, departmentRepository, classificationLevelRepository);
     }
 
     @Bean

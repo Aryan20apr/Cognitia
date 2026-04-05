@@ -7,7 +7,9 @@ import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -111,6 +113,17 @@ public class GlobalExceptionHandler {
         return detail.isEmpty()
                 ? "A record with the provided details already exists"
                 : "Duplicate value: " + detail;
+    }
+
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+    public ResponseEntity<ExceptionApiResponse<?>> handleAccessDenied(RuntimeException ex) {
+        log.warn("[GlobalExceptionHandler] : [handleAccessDenied] : {}", ex.getMessage());
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message("Access denied: insufficient permissions")
+                .data(null)
+                .code(403)
+                .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
     @ExceptionHandler(RuntimeException.class)

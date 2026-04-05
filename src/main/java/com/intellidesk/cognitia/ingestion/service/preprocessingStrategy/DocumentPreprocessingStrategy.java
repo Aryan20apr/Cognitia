@@ -27,17 +27,20 @@ public class DocumentPreprocessingStrategy implements PreprocessingStrategy {
     private final DocumentWriter documentWriter;
     private final DocumentContextExtractor documentContextExtractor;
     private final ContextualChunkEnricher contextualChunkEnricher;
+    private final AccessMetadataResolver accessMetadataResolver;
     private final boolean enrichmentEnabled;
 
     DocumentPreprocessingStrategy(TextSplitter textSplitter,
                                   DocumentWriter documentWriter,
                                   DocumentContextExtractor documentContextExtractor,
                                   ContextualChunkEnricher contextualChunkEnricher,
+                                  AccessMetadataResolver accessMetadataResolver,
                                   @Value("${ingestion.contextual-enrichment.enabled:true}") boolean enrichmentEnabled) {
         this.textSplitter = textSplitter;
         this.documentWriter = documentWriter;
         this.documentContextExtractor = documentContextExtractor;
         this.contextualChunkEnricher = contextualChunkEnricher;
+        this.accessMetadataResolver = accessMetadataResolver;
         this.enrichmentEnabled = enrichmentEnabled;
     }
 
@@ -63,8 +66,12 @@ public class DocumentPreprocessingStrategy implements PreprocessingStrategy {
             }
         }
 
+        accessMetadataResolver.ensureDefaults(rawSource);
+
         String ingestionTimestamp = Instant.now().toString();
         String contentType = resolveContentType(rawSource.getFormat());
+        String departmentName = accessMetadataResolver.getDepartmentName(rawSource);
+        String classificationRank = accessMetadataResolver.getClassificationRank(rawSource);
         AtomicInteger chunkIndex = new AtomicInteger(1);
 
         documents.stream().forEach(doc -> {
@@ -77,6 +84,8 @@ public class DocumentPreprocessingStrategy implements PreprocessingStrategy {
             metaData.put("fileName", rawSource.getName());
             metaData.put("ingestionTimestamp", ingestionTimestamp);
             metaData.put("contentType", contentType);
+            metaData.put("department", departmentName);
+            metaData.put("classificationRank", classificationRank);
 
             Object tikaPage = metaData.get("page_number");
             if (tikaPage == null) {

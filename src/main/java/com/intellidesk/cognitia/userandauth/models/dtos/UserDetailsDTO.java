@@ -1,9 +1,9 @@
 package com.intellidesk.cognitia.userandauth.models.dtos;
 
 import java.util.List;
+import java.util.Set;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,5 +30,7 @@ public class UserDetailsDTO{
     String companyId; 
     @Schema(description = "Granted permissions")
     List<String> permissions;  
+    @Schema(description = "Departments")
+    Set<DepartmentDTO> departments;
     
 }

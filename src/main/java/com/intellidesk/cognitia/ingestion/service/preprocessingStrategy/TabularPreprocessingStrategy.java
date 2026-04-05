@@ -31,11 +31,17 @@ import lombok.extern.slf4j.Slf4j;
 public class TabularPreprocessingStrategy implements PreprocessingStrategy {
 
     private static final int ROWS_PER_CHUNK = 50;
+    private final AccessMetadataResolver accessMetadataResolver;
+
+    TabularPreprocessingStrategy(AccessMetadataResolver accessMetadataResolver) {
+        this.accessMetadataResolver = accessMetadataResolver;
+    }
 
     @Override
     public List<Document> preprocess(Resource resource,
             com.intellidesk.cognitia.ingestion.models.entities.Resource rawSource) {
 
+        accessMetadataResolver.ensureDefaults(rawSource);
         String format = normalizeFormat(rawSource.getFormat());
         try {
             if ("csv".equals(format)) {
@@ -186,6 +192,8 @@ public class TabularPreprocessingStrategy implements PreprocessingStrategy {
         metadata.put("fileName", rawSource.getName());
         metadata.put("ingestionTimestamp", Instant.now().toString());
         metadata.put("contentType", resolveContentType(rawSource.getFormat()));
+        metadata.put("department", accessMetadataResolver.getDepartmentName(rawSource));
+        metadata.put("classificationRank", accessMetadataResolver.getClassificationRank(rawSource));
         return metadata;
     }
 

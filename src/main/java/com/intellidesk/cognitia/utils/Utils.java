@@ -1,10 +1,11 @@
 package com.intellidesk.cognitia.utils;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 
+import com.intellidesk.cognitia.userandauth.models.dtos.DepartmentDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.UserDetailsDTO;
 import com.intellidesk.cognitia.userandauth.models.entities.Permission;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
@@ -30,7 +31,7 @@ public class Utils {
             user.getPhoneNumber(),
             roleName,
             user.getTenant() != null ? user.getTenant().getId().toString() : null,
-            permissionNames
-        );
+            permissionNames,
+            user.getDepartments().stream().map(department -> new DepartmentDTO(department.getId(), department.getName(), department.getDescription())).collect(Collectors.toSet()));
     }
 }

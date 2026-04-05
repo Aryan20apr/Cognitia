@@ -9,7 +9,9 @@ public record DocumentContext(
     String date,
     String description,
     String entities,
-    int pageCount
+    int pageCount,
+    String departmentName,
+    String classificationName
 ) {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -26,7 +28,7 @@ public record DocumentContext(
         try {
             return MAPPER.readValue(json, DocumentContext.class);
         } catch (Exception e) {
-            return new DocumentContext("Unknown", null, null, null, null, 0);
+            return new DocumentContext("Unknown", null, null, null, null, 0, null, null);
         }
     }
 

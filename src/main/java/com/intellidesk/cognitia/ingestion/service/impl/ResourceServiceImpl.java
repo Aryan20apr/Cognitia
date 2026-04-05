@@ -29,7 +29,11 @@ import com.intellidesk.cognitia.ingestion.service.ResourceService;
 import com.intellidesk.cognitia.ingestion.service.uploadStrategy.FileUploadStrategy;
 import com.intellidesk.cognitia.ingestion.service.uploadStrategy.FileUploadStrategyFactory;
 import com.intellidesk.cognitia.ingestion.utils.ResourceMapper;
+import com.intellidesk.cognitia.userandauth.models.entities.ClassificationLevel;
+import com.intellidesk.cognitia.userandauth.models.entities.Department;
 import com.intellidesk.cognitia.userandauth.multiteancy.TenantContext;
+import com.intellidesk.cognitia.userandauth.repository.ClassificationLevelRepository;
+import com.intellidesk.cognitia.userandauth.repository.DepartmentRepository;
 import com.intellidesk.cognitia.utils.exceptionHandling.QuotaExceededException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
@@ -49,6 +53,8 @@ public class ResourceServiceImpl implements ResourceService {
     private final QuotaService quotaService;
     private final Cloudinary cloudinary;
     private final VectorStore vectorStore;
+    private final DepartmentRepository departmentRepository;
+    private final ClassificationLevelRepository classificationLevelRepository;
 
     @Override
     @Transactional
@@ -65,6 +71,24 @@ public class ResourceServiceImpl implements ResourceService {
         try {
            CloudinaryUploadResult cloudinaryUploadResult = fileUploadStrategy.upload(file);
            
+           Department department = null;
+           ClassificationLevel classificationLevel = null;
+
+           if (resourceMetadata.departmentId() != null) {
+               department = departmentRepository.findById(resourceMetadata.departmentId())
+                   .orElseThrow(() -> new ApiException("Department not found"));
+               if (!department.getTenantId().equals(tenantId)) {
+                   throw new ApiException("Department does not belong to this tenant");
+               }
+           }
+           if (resourceMetadata.classificationLevelId() != null) {
+               classificationLevel = classificationLevelRepository.findById(resourceMetadata.classificationLevelId())
+                   .orElseThrow(() -> new ApiException("Classification level not found"));
+               if (!classificationLevel.getTenantId().equals(tenantId)) {
+                   throw new ApiException("Classification level does not belong to this tenant");
+               }
+           }
+
            Resource rawSouce = Resource.builder()
                 .assetId(cloudinaryUploadResult.assetId())
                 .publicId(cloudinaryUploadResult.publicId())
@@ -76,6 +100,8 @@ public class ResourceServiceImpl implements ResourceService {
                 .size((double)file.getSize())
                 .format(getFileExtension(file))
                 .status(Status.UPLOADED)
+                .department(department)
+                .classificationLevel(classificationLevel)
                 .build();
 
             IngestionJob ingestionOutbox = IngestionJob.builder()

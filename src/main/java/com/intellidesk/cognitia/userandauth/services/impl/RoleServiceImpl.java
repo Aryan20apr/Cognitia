@@ -3,6 +3,7 @@ package com.intellidesk.cognitia.userandauth.services.impl;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -10,8 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.intellidesk.cognitia.userandauth.models.dtos.PermissionDTO;
 import com.intellidesk.cognitia.userandauth.models.dtos.RoleCreationDTO;
+import com.intellidesk.cognitia.userandauth.models.entities.ClassificationLevel;
 import com.intellidesk.cognitia.userandauth.models.entities.Permission;
 import com.intellidesk.cognitia.userandauth.models.entities.Role;
+import com.intellidesk.cognitia.userandauth.repository.ClassificationLevelRepository;
 import com.intellidesk.cognitia.userandauth.repository.PermissionsRepository;
 import com.intellidesk.cognitia.userandauth.repository.RoleRepository;
 import com.intellidesk.cognitia.userandauth.repository.UserRepository;
@@ -28,7 +31,9 @@ public class RoleServiceImpl implements RoleService{
     private final RoleRepository roleRepository;
     private final PermissionsRepository permissionRepository;
     private final UserRepository userRepository;
+    private final ClassificationLevelRepository classificationLevelRepository;
 
+    @Override
     @Transactional
     public RoleCreationDTO createRole(RoleCreationDTO roleCreationDTO) {
 
@@ -57,8 +62,11 @@ public class RoleServiceImpl implements RoleService{
         role.setRoleName(roleCreationDTO.getName());
         role.setPermissions(new HashSet<>(existingPermissions));
 
+        role.setClearanceLevel(resolveClearanceLevel(roleCreationDTO.getClearanceLevelId()));
+
         Role newRole = roleRepository.save(role);
         roleCreationDTO.setRoleId(newRole.getRoleId());
+        roleCreationDTO.setClearanceRank(deriveClearanceRank(newRole));
         return roleCreationDTO;
     }
     @Override
@@ -73,6 +81,8 @@ public class RoleServiceImpl implements RoleService{
                     .map(p -> new PermissionDTO(p.getPermissionId(), p.getName()))
                     .collect(Collectors.toSet());
                 dto.setPermissions(perms);
+                dto.setClearanceLevelId(role.getClearanceLevel() != null ? role.getClearanceLevel().getId() : null);
+                dto.setClearanceRank(deriveClearanceRank(role));
                 return dto;
             }).collect(Collectors.toList());
         }
@@ -102,9 +112,27 @@ public class RoleServiceImpl implements RoleService{
         
         role.setRoleName(roleCreationDTO.getName());
         role.setPermissions(new HashSet<>(existingPermissions));
+        if (roleCreationDTO.getClearanceLevelId() != null) {
+            role.setClearanceLevel(resolveClearanceLevel(roleCreationDTO.getClearanceLevelId()));
+        }
         Role updatedRole = roleRepository.save(role);
         roleCreationDTO.setRoleId(updatedRole.getRoleId());
+        roleCreationDTO.setClearanceRank(deriveClearanceRank(updatedRole));
         return roleCreationDTO;
+    }
+
+    private ClassificationLevel resolveClearanceLevel(UUID levelId) {
+        if (levelId == null) {
+            return null;
+        }
+        return classificationLevelRepository.findById(levelId)
+            .orElseThrow(() -> new ApiException("Classification level not found: " + levelId));
+    }
+
+    private int deriveClearanceRank(Role role) {
+        return (role.getClearanceLevel() != null && role.getClearanceLevel().getRank() != null)
+            ? role.getClearanceLevel().getRank()
+            : 0;
     }
 
     @Override

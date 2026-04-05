@@ -1,5 +1,8 @@
 package com.intellidesk.cognitia.userandauth.models.dtos;
 
+import java.util.List;
+import java.util.UUID;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -40,6 +43,9 @@ public record UserCreationDTO(
     @NotNull(message = "Role details are required")
     @Valid
     @Schema(description = "Role payload")
-    RoleCreationDTO roleDetails
+    RoleCreationDTO roleDetails,
+
+    @Schema(description = "Department IDs to assign the user to (optional)")
+    List<UUID> departmentIds
 
 ) { }

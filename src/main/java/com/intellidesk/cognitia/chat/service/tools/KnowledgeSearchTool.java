@@ -20,7 +20,9 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.intellidesk.cognitia.chat.models.dtos.AccessPolicy;
 import com.intellidesk.cognitia.chat.models.dtos.SourceReference;
+import com.intellidesk.cognitia.chat.service.FilterExpressionBuilder;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -78,14 +80,15 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
 
             ToolContext toolContext) {
 
-        UUID tenantId = resolveTenantId(toolContext);
-        if (tenantId == null) {
-            log.error("KnowledgeSearch aborted — no tenant context available");
+        AccessPolicy accessPolicy = resolveAccessPolicy(toolContext);
+        if (accessPolicy == null) {
+            log.error("KnowledgeSearch aborted — no access policy available");
             return List.of();
         }
 
+        UUID tenantId = accessPolicy.tenantId();
         int resolvedTopK = (topK != null && topK >= 1 && topK <= 10) ? topK : DEFAULT_TOP_K;
-        String filterExpression = buildFilterExpression(tenantId, sourceFormat);
+        String filterExpression = FilterExpressionBuilder.build(accessPolicy, sourceFormat);
 
         String searchQuery = query;
         if (contextualSearchEnabled) {
@@ -111,19 +114,11 @@ public class KnowledgeSearchTool implements TimelineAwareTool {
         }
     }
 
-    private UUID resolveTenantId(ToolContext toolContext) {
-        if (toolContext != null && toolContext.getContext().containsKey("tenantId")) {
-            return UUID.fromString((String) toolContext.getContext().get("tenantId"));
+    private AccessPolicy resolveAccessPolicy(ToolContext toolContext) {
+        if (toolContext != null && toolContext.getContext().containsKey("accessPolicy")) {
+            return AccessPolicy.deserialize((String) toolContext.getContext().get("accessPolicy"));
         }
         return null;
-    }
-
-    private String buildFilterExpression(UUID tenantId, String sourceFormat) {
-        String tenantFilter = "tenantId == '" + tenantId.toString() + "'";
-        if (sourceFormat != null && !sourceFormat.isBlank()) {
-            return tenantFilter + " && sourceFormat == '" + sourceFormat.strip() + "'";
-        }
-        return tenantFilter;
     }
 
     private String rewriteQueryWithContext(String originalQuery, ToolContext toolContext) {
