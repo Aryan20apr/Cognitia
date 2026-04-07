@@ -53,9 +53,10 @@ public class RoleController {
     }
 
     @Operation(summary = "Update a role with name and permissions")
-    @PatchMapping()
+    @PatchMapping("/{roleId}")
     @PreAuthorize("hasAuthority('PERM_ROLE_UPDATE')")
-    public ResponseEntity<ApiResponse<RoleCreationDTO>> updateRole(@RequestBody RoleCreationDTO roleCreationDTO) {
+    public ResponseEntity<ApiResponse<RoleCreationDTO>> updateRole(@PathVariable Integer roleId, @RequestBody RoleCreationDTO roleCreationDTO) {
+        roleCreationDTO.setRoleId(roleId);
         RoleCreationDTO roleCreationDTO2 = roleService.updateRole(roleCreationDTO);
         return ResponseEntity.ok(new ApiResponse<>("Role updated successfully", true, roleCreationDTO2));
     }

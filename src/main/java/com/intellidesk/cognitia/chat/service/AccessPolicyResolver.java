@@ -3,9 +3,11 @@ package com.intellidesk.cognitia.chat.service;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.intellidesk.cognitia.chat.models.dtos.AccessPolicy;
 import com.intellidesk.cognitia.userandauth.models.entities.ClassificationLevel;
@@ -14,6 +16,7 @@ import com.intellidesk.cognitia.userandauth.models.entities.Role;
 import com.intellidesk.cognitia.userandauth.models.entities.User;
 import com.intellidesk.cognitia.userandauth.models.entities.enums.RoleEnum;
 import com.intellidesk.cognitia.userandauth.repository.ClassificationLevelRepository;
+import com.intellidesk.cognitia.userandauth.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,8 +25,13 @@ import lombok.RequiredArgsConstructor;
 public class AccessPolicyResolver {
 
     private final ClassificationLevelRepository classificationLevelRepository;
+    private final UserRepository userRepository;
 
-    public AccessPolicy resolve(User user) {
+    @Transactional(readOnly = true)
+    public AccessPolicy resolve(UUID userId) {
+        User user = userRepository.findByIdWithAccessData(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+
         Role role = user.getRole();
 
         boolean isSuperAdmin = role != null
