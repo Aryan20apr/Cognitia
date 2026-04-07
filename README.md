@@ -6,41 +6,6 @@ A multi-tenant platform that lets organizations ingest their documents, build a 
 
 Built with **Java 21**, **Spring Boot 4**, **Spring AI**, **PostgreSQL + pgvector**, **Apache Kafka**, and **Redis**.
 
----
-
-## Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          Client Application                         │
-└──────────────┬──────────────────────────────────┬───────────────────┘
-               │ REST API                         │ SSE (Streaming)
-               ▼                                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Spring Boot Application                      │
-│                                                                     │
-│  ┌───────────┐  ┌───────────┐  ┌──────────┐  ┌──────────────────┐  │
-│  │   Auth &   │  │ Ingestion │  │   Chat   │  │    Analytics &   │  │
-│  │   Tenant   │  │  Pipeline │  │  & Agent │  │     Payments     │  │
-│  └─────┬─────┘  └─────┬─────┘  └────┬─────┘  └────────┬─────────┘  │
-│        │              │              │                  │            │
-│  ┌─────┴──────────────┴──────────────┴──────────────────┴─────────┐ │
-│  │                    Shared Infrastructure                        │ │
-│  │         Kafka  ·  Redis  ·  Cloudinary  ·  Razorpay            │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │
-          ┌────────────────────┼────────────────────┐
-          ▼                    ▼                    ▼
-   ┌────────────┐     ┌──────────────┐     ┌─────────────┐
-   │ PostgreSQL │     │  PostgreSQL  │     │    Redis     │
-   │  (Primary) │     │  (pgvector)  │     │   (Cache &   │
-   │            │     │  Vector DB   │     │    Memory)   │
-   └────────────┘     └──────────────┘     └─────────────┘
-```
-
----
-
 ## Core Modules
 
 ### Multi-Tenant Identity & Access
