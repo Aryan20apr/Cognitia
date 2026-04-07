@@ -30,4 +30,8 @@ public interface UserRepository extends JpaRepository<User, UUID>{
     boolean existsGloballyByPhoneNumber(@Param("phoneNumber") String phoneNumber);
 
     boolean existsByRole_RoleId(Integer roleId);
+
+    @EntityGraph(attributePaths = {"role", "role.clearanceLevel", "departments"})
+    @Query("SELECT u FROM User u WHERE u.id = :id")
+    Optional<User> findByIdWithAccessData(@Param("id") UUID id);
 }

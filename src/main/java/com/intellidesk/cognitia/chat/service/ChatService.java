@@ -269,7 +269,7 @@ public class ChatService {
     }
 
     private AccessPolicy resolveCurrentAccessPolicy() {
-        return accessPolicyResolver.resolve(getCurrentUser());
+        return accessPolicyResolver.resolve(getCurrentUserId());
     }
 
     /**
