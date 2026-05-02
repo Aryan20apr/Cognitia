@@ -36,8 +36,8 @@ public class JwtTokenProvider {
     
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
-    private final long accessTokenMs = Duration.ofMinutes(60).toMillis();
-    private final String issuer = "my-monolith";
+    private final long accessTokenMs = Duration.ofMinutes(30).toMillis();
+    private final String issuer = "cognitia";
 
     public JwtTokenProvider(@Value("${jwt.private-key.path}") String privKeyPath,
                             @Value("${jwt.public-key.path}") String pubKeyPath,  ResourceLoader resourceLoader) {

@@ -1,6 +1,7 @@
 package com.intellidesk.cognitia.ingestion.service.uploadStrategy;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -36,15 +37,12 @@ public class ImageUploadStrategy implements FileUploadStrategy {
 
     @Override
     public CloudinaryUploadResult upload(MultipartFile file) throws IOException {
-        var result = cloudinary.uploader().upload(
-                file.getBytes(),
-                Map.of(
-                        "resource_type", "image",
-                        "public_id", file.getOriginalFilename() != null
-                                ? file.getOriginalFilename().replaceAll("\\..+$", "")
-                                : null
-                )
-        );
+        Map<String, Object> uploadParams = new HashMap<>();
+        uploadParams.put("resource_type", "image");
+        if (file.getOriginalFilename() != null) {
+            uploadParams.put("public_id", file.getOriginalFilename().replaceAll("\\..+$", ""));
+        }
+        var result = cloudinary.uploader().upload(file.getBytes(), uploadParams);
         log.info("[ImageUploadStrategy] [upload] Cloudinary upload result: {}", result);
         return CloudinaryMapper.fromMap(result);
     }

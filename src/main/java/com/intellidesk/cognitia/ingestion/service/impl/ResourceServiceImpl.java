@@ -68,8 +68,10 @@ public class ResourceServiceImpl implements ResourceService {
         }
 
         FileUploadStrategy fileUploadStrategy = fileUploadStrategyFactory.getStrategy(file);
+        log.info("[uploadRawResource] Strategy: {}, file: {}", fileUploadStrategy.getClass().getSimpleName(), file.getOriginalFilename());
         try {
            CloudinaryUploadResult cloudinaryUploadResult = fileUploadStrategy.upload(file);
+           log.info("[uploadRawResource] Cloudinary upload complete: assetId={}", cloudinaryUploadResult.assetId());
            
            Department department = null;
            ClassificationLevel classificationLevel = null;
@@ -110,17 +112,24 @@ public class ResourceServiceImpl implements ResourceService {
                 .retries(0)
                 .build();
 
-           resourceOutboxRepository.save(ingestionOutbox);
+           log.info("[uploadRawResource] Saving Resource entity...");
            resourceRepository.save(rawSouce);
+           log.info("[uploadRawResource] Resource saved. Saving IngestionJob...");
+           resourceOutboxRepository.save(ingestionOutbox);
+           log.info("[uploadRawResource] IngestionJob saved. Incrementing quota...");
            
-           // Increment resource count after successful save
            if (tenantId != null) {
                quotaService.incrementResourceCount(tenantId);
            }
            
+           log.info("[uploadRawResource] Upload complete, returning result");
            return cloudinaryUploadResult;
         } catch (IOException e) {
+            log.error("[uploadRawResource] IOException during upload", e);
             throw new ResourceUploadException(e.getMessage());
+        } catch (Exception e) {
+            log.error("[uploadRawResource] Unexpected error: {} - {}", e.getClass().getSimpleName(), e.getMessage(), e);
+            throw e;
         }
     }
 
