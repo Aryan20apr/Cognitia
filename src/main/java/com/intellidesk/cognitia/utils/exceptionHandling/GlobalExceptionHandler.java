@@ -128,10 +128,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ExceptionApiResponse<?>> handleAllRuntimeExcption(RuntimeException runtimeException) {
-        log.error("[GlobalExceptionHandler] : [handleAllRuntimeExcption] : " + runtimeException.getMessage());
-        runtimeException.printStackTrace();
+        log.error("[GlobalExceptionHandler] : [handleAllRuntimeExcption] : {} - {}",
+                runtimeException.getClass().getSimpleName(), runtimeException.getMessage(), runtimeException);
         ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
-                .message(runtimeException.getMessage())
+                .message(runtimeException.getMessage() != null
+                        ? runtimeException.getMessage()
+                        : "Internal server error: " + runtimeException.getClass().getSimpleName())
                 .data(null)
                 .code(500)
                 .build();
