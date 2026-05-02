@@ -1,6 +1,7 @@
 package com.intellidesk.cognitia.ingestion.service.uploadStrategy;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
@@ -21,16 +22,12 @@ public class PdfUploadStrategy implements FileUploadStrategy {
 
     @Override
     public CloudinaryUploadResult upload(MultipartFile file) throws IOException {
-        var result = cloudinary.uploader().upload(
-            file.getBytes(),
-            Map.of(
-                "resource_type", "raw",
-                "public_id", /* perhaps derive or pass in */
-                    file.getOriginalFilename() != null
-                        ? file.getOriginalFilename().replaceAll("\\..+$","") 
-                        : null
-            )
-        );
+        Map<String, Object> uploadParams = new HashMap<>();
+        uploadParams.put("resource_type", "raw");
+        if (file.getOriginalFilename() != null) {
+            uploadParams.put("public_id", file.getOriginalFilename().replaceAll("\\..+$", ""));
+        }
+        var result = cloudinary.uploader().upload(file.getBytes(), uploadParams);
         log.info("[PdfUploadStrategy] [upload] Cloudinary upload result: {}", result);
         return CloudinaryMapper.fromMap(result);
     }
