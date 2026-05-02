@@ -36,10 +36,15 @@ services:
   #   volumes:
   #     - dbdata6:/data/db
 
-  # redis:
-  #   image: redis
-  #   ports:
-  #     - 6379:6379
+  redis:
+    image: redis:7.2
+    container_name: redis-server
+    command: ["redis-server", "--requirepass", "redisuser"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
 
   postgres:
     image: ankane/pgvector:latest
@@ -56,3 +61,4 @@ services:
 volumes:
   dbdata6:
   postgres_data:
+  redis_data:

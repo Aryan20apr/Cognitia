@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+import org.springframework.data.redis.RedisConnectionFailureException;
+
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ApiException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.PaymentRequiredException;
 import com.intellidesk.cognitia.utils.exceptionHandling.exceptions.ResourceUploadException;
@@ -124,6 +126,17 @@ public class GlobalExceptionHandler {
                 .code(403)
                 .build();
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(RedisConnectionFailureException.class)
+    public ResponseEntity<ExceptionApiResponse<?>> handleRedisConnectionFailure(RedisConnectionFailureException ex) {
+        log.error("[GlobalExceptionHandler] Redis connection failure: {}", ex.getMessage(), ex);
+        ExceptionApiResponse<Object> response = ExceptionApiResponse.<Object>builder()
+                .message("Service temporarily unavailable. Please try again in a moment.")
+                .data(null)
+                .code(503)
+                .build();
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
     }
 
     @ExceptionHandler(RuntimeException.class)

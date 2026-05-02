@@ -41,24 +41,20 @@ public class ThreadLockService {
     /**
      * Try to acquire processing lock for a thread.
      * @param threadId The thread ID to lock
-     * @return Lock token if acquired, null if thread is busy
+     * @return Lock token if acquired, null if thread is genuinely busy
+     * @throws org.springframework.data.redis.RedisConnectionFailureException if Redis is unreachable
      */
     public String tryAcquire(UUID threadId) {
         String key = lockKey(threadId);
         String lockToken = UUID.randomUUID().toString();
         
-        try {
-            Boolean acquired = redisTemplate.opsForValue().setIfAbsent(key, lockToken, LOCK_TTL);
-            if (acquired != null && acquired) {
-                log.info("[ThreadLock] Lock acquired for thread {} with token {}", threadId, lockToken);
-                return lockToken;
-            }
-            log.info("[ThreadLock] Failed to acquire lock for thread {} - already locked", threadId);
-            return null;
-        } catch (Exception e) {
-            log.error("[ThreadLock] Error acquiring lock for thread {}: {}", threadId, e.getMessage());
-            return null;
+        Boolean acquired = redisTemplate.opsForValue().setIfAbsent(key, lockToken, LOCK_TTL);
+        if (acquired != null && acquired) {
+            log.info("[ThreadLock] Lock acquired for thread {}", threadId);
+            return lockToken;
         }
+        log.info("[ThreadLock] Lock contention on thread {} - already locked by another request", threadId);
+        return null;
     }
 
     /**
@@ -71,14 +67,14 @@ public class ThreadLockService {
         
         String key = lockKey(threadId);
         try {
-            Long result = redisTemplate.execute(RELEASE_SCRIPT,List.of(key),lockToken);
+            Long result = redisTemplate.execute(RELEASE_SCRIPT, List.of(key), lockToken);
             if (result != null && result == 1) {
                 log.info("[ThreadLock] Lock released for thread {}", threadId);
             } else {
-                log.warn("[ThreadLock] Cannot release lock for thread {} - token mismatch or expired", threadId);
+                log.warn("[ThreadLock] Lock release skipped for thread {} - token mismatch or already expired", threadId);
             }
         } catch (Exception e) {
-            log.error("[ThreadLock] Error releasing lock for thread {}: {}", threadId, e.getMessage());
+            log.error("[ThreadLock] Failed to release lock for thread {} (will expire via TTL): {}", threadId, e.getMessage(), e);
         }
     }
 
@@ -89,12 +85,7 @@ public class ThreadLockService {
      */
     public boolean isLocked(UUID threadId) {
         String key = lockKey(threadId);
-        try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(key));
-        } catch (Exception e) {
-            log.error("[ThreadLock] Error checking lock for thread {}: {}", threadId, e.getMessage());
-            return false;
-        }
+        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
     }
 
     /**
@@ -105,13 +96,8 @@ public class ThreadLockService {
      */
     public long getQueuePosition(UUID threadId) {
         String key = queueKey(threadId);
-        try {
-            Long size = redisTemplate.opsForList().size(key);
-            return size != null ? size : 0;
-        } catch (Exception e) {
-            log.error("[ThreadLock] Error getting queue position for thread {}: {}", threadId, e.getMessage());
-            return 0;
-        }
+        Long size = redisTemplate.opsForList().size(key);
+        return size != null ? size : 0;
     }
 
     /**
@@ -123,16 +109,10 @@ public class ThreadLockService {
      */
     public long enqueue(UUID threadId, String messageId) {
         String key = queueKey(threadId);
-        try {
-            Long position = redisTemplate.opsForList().rightPush(key, messageId);
-            // Set expiry on queue to prevent orphaned queues
-            redisTemplate.expire(key, Duration.ofHours(1));
-            log.info("[ThreadLock] Message {} queued for thread {} at position {}", messageId, threadId, position);
-            return position != null ? position : 0;
-        } catch (Exception e) {
-            log.error("[ThreadLock] Error enqueueing message for thread {}: {}", threadId, e.getMessage());
-            return 0;
-        }
+        Long position = redisTemplate.opsForList().rightPush(key, messageId);
+        redisTemplate.expire(key, Duration.ofHours(1));
+        log.info("[ThreadLock] Message {} queued for thread {} at position {}", messageId, threadId, position);
+        return position != null ? position : 0;
     }
 
     /**
@@ -142,12 +122,7 @@ public class ThreadLockService {
      */
     public String dequeue(UUID threadId) {
         String key = queueKey(threadId);
-        try {
-            return redisTemplate.opsForList().leftPop(key);
-        } catch (Exception e) {
-            log.error("[ThreadLock] Error dequeuing message for thread {}: {}", threadId, e.getMessage());
-            return null;
-        }
+        return redisTemplate.opsForList().leftPop(key);
     }
 
     /**

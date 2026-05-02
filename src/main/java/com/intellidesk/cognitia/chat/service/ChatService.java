@@ -294,7 +294,6 @@ public class ChatService {
                 String token = threadLockService.tryAcquire(threadId);
                 if (token == null) {
                     ThreadLockStatus status = threadLockService.getStatus(threadId);
-                    log.info("[ChatService] Thread {} is busy, queue position: {}", threadId, status.queuePosition());
                     throw new ThreadBusyException(message.getThreadId(), status.queuePosition());
                 }
                 log.info("[ChatService] Lock acquired for thread {}, starting stream", threadId);

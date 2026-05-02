@@ -12,8 +12,9 @@ spring:
     import: optional:secrets-dev.yml
   data:
     redis:
-      url: localhost
+      host: localhost
       port: 6379
+      password: redisuser
   servlet:
     multipart:
       max-file-size: 50MB

@@ -30,6 +30,8 @@ import com.intellidesk.cognitia.utils.exceptionHandling.DuplicateRequestAlreadyP
 import com.intellidesk.cognitia.utils.exceptionHandling.DuplicateRequestInProgressException;
 import com.intellidesk.cognitia.utils.exceptionHandling.ThreadBusyException;
 
+import org.springframework.data.redis.RedisConnectionFailureException;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
@@ -183,6 +185,15 @@ public class ChatController {
             return Flux.just(
                 ServerSentEvent.<String>builder(
                     "{\"type\":\"error\",\"code\":\"DUPLICATE_IN_PROGRESS\",\"message\":\"" + escapeJson(e.getMessage()) + "\",\"retryable\":false}"
+                ).event("error").build(),
+                ServerSentEvent.<String>builder("[DONE]").build()
+            );
+        })
+        .onErrorResume(RedisConnectionFailureException.class, e -> {
+            log.error("[ChatController] Redis unavailable: {}", e.getMessage());
+            return Flux.just(
+                ServerSentEvent.<String>builder(
+                    "{\"type\":\"error\",\"code\":\"SERVICE_UNAVAILABLE\",\"message\":\"Service temporarily unavailable. Please try again in a moment.\",\"retryable\":true}"
                 ).event("error").build(),
                 ServerSentEvent.<String>builder("[DONE]").build()
             );
