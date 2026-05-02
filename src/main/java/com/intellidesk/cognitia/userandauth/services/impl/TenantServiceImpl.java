@@ -71,7 +71,7 @@ public class TenantServiceImpl implements TenantService {
                         .about(tenantDTO.getAbout())
                         .contactEmail(tenantDTO.getContactEmail())
                         .users(new HashSet<>())
-                        .domain(tenantDTO.getDomain()).build();
+                        .build();
         Tenant newTenant = tenantRepository.save(tenant);
 
         tenantSetupService.seedDefaults(newTenant.getId());
@@ -155,7 +155,6 @@ public class TenantServiceImpl implements TenantService {
                 .orElseThrow(() -> new ApiException("Tenant not found"));
         tenant.setName(tenantDTO.getName());
         tenant.setAbout(tenantDTO.getAbout());
-        tenant.setDomain(tenantDTO.getDomain());
         tenant.setContactEmail(tenantDTO.getContactEmail());
         tenantRepository.save(tenant);
 
@@ -193,9 +192,6 @@ public class TenantServiceImpl implements TenantService {
         if (dto.about() != null) {
             tenant.setAbout(dto.about());
         }
-        if (dto.domain() != null) {
-            tenant.setDomain(dto.domain());
-        }
         if (dto.contactEmail() != null) {
             tenant.setContactEmail(dto.contactEmail());
         }
@@ -209,7 +205,6 @@ public class TenantServiceImpl implements TenantService {
             tenant.getId().toString(),
             tenant.getName(),
             tenant.getAbout(),
-            tenant.getDomain(),
             tenant.getContactEmail(),
             tenant.getRootUser().getEmail(),
             "-",

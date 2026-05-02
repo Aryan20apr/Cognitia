@@ -11,8 +11,6 @@ public record TenantUpdateDTO(
 
         String about,
 
-        String domain,
-
         @Email
         String contactEmail
 ) {}

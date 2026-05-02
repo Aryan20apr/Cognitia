@@ -43,8 +43,6 @@ public class Tenant {
 
     private String name;
     
-    private String domain;
-
     @Column(unique = true)
     private String contactEmail;
     
@@ -66,7 +64,7 @@ public class Tenant {
 
     @Override
     public int hashCode() {
-       return Objects.hash(this.id, this.name,this.domain, this.contactEmail);
+       return Objects.hash(this.id, this.name, this.contactEmail);
     }
 
     @Override
@@ -87,11 +85,6 @@ public class Tenant {
             if (other.name != null)
                 return false;
         } else if (!name.equals(other.name))
-            return false;
-        if (domain == null) {
-            if (other.domain != null)
-                return false;
-        } else if (!domain.equals(other.domain))
             return false;
         if (contactEmail == null) {
             if (other.contactEmail != null)

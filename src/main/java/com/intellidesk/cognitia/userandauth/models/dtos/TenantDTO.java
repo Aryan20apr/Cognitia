@@ -17,7 +17,6 @@ public class TenantDTO {
     private String id;
     private String name;
     private String about;
-    private String domain;
     private String contactEmail;
     private String adminEmail;
 
