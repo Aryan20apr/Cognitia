@@ -16,9 +16,9 @@ import com.intellidesk.cognitia.userandauth.models.entities.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -41,7 +41,7 @@ import lombok.Setter;
 public class ChatThread extends TenantAwareEntity {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedUuidV7
     private UUID id;
 
     private String title;

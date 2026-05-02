@@ -9,8 +9,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -53,7 +54,7 @@ import org.hibernate.annotations.Filters;
 public class UserQuota extends TenantAwareEntity {
 
     @Id
-    @GeneratedValue(strategy = jakarta.persistence.GenerationType.UUID)
+    @GeneratedUuidV7
     private UUID id;
 
     @Column(name = "user_id", nullable = false)

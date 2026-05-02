@@ -4,6 +4,8 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.UUID;
 
+import com.intellidesk.cognitia.utils.uuidv7.UuidUtils;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
@@ -94,7 +96,7 @@ public class RazorpayGateway implements PaymentGateway {
 
         PaymentOrder paymentOrder = PaymentOrder.builder()
             .orderId(order.get("id"))
-            .orderRef(UUID.randomUUID().toString())
+            .orderRef(UuidUtils.randomV7().toString())
             .amount(((Number) order.get("amount")).longValue())
             .amountDue(((Number)order.get("amount_due")).longValue())
             .amountPaid(((Number)order.get("amount_paid")).longValue())

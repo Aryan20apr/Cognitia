@@ -5,6 +5,8 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
+
 @Entity
 @Table(name = "billing_usage_lines")
 @Data
@@ -14,7 +16,7 @@ import java.util.UUID;
 public class BillingUsageLine {
 
     @Id
-    @GeneratedValue
+    @GeneratedUuidV7
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)

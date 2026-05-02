@@ -7,6 +7,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
+
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Filters;
 
@@ -23,7 +25,7 @@ import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
 public class BillingRecord extends TenantAwareEntity {
 
     @Id
-    @GeneratedValue
+    @GeneratedUuidV7
     private UUID invoiceId;
 
     private LocalDate periodStart;

@@ -15,9 +15,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import lombok.AllArgsConstructor;
@@ -41,7 +41,7 @@ import com.intellidesk.cognitia.userandauth.models.entities.TenantAwareEntity;
 public class IngestionJob extends TenantAwareEntity{
 
     @Id
-    @GeneratedValue(strategy=GenerationType.UUID)
+    @GeneratedUuidV7
     private UUID id;
 
     @OneToOne(fetch = FetchType.EAGER)
