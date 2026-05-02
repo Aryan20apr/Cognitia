@@ -16,10 +16,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -54,7 +53,7 @@ import lombok.ToString;
 public class TenantQuota extends TenantAwareEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedUuidV7
     private UUID id;
 
     @ManyToOne

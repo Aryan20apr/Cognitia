@@ -6,6 +6,8 @@ import lombok.*;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
+
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Filters;
 
@@ -24,7 +26,7 @@ import com.intellidesk.cognitia.analytics.models.enums.PeriodType;
 public class AggregatedUsage extends TenantAwareEntity {
 
     @Id
-    @GeneratedValue
+    @GeneratedUuidV7
     private UUID id;
 
     private UUID userId; // nullable for tenant-level aggregation

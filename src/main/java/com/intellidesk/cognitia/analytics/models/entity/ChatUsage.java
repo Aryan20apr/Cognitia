@@ -20,6 +20,8 @@ import com.intellidesk.cognitia.userandauth.models.entities.User;
 import jakarta.persistence.*;
 import lombok.*;
 
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
+
 @Entity
 @Builder
 @Setter
@@ -36,7 +38,7 @@ import lombok.*;
 public class ChatUsage extends TenantAwareEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedUuidV7
     private UUID id;
 
     @Column(name= "request_id", unique=true, nullable=false)

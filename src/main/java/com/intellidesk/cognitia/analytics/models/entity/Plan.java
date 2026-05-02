@@ -6,6 +6,8 @@ import java.math.BigDecimal;
 import java.util.Set;
 import java.util.UUID;
 
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
+
 @Entity
 @Table(name = "plans")
 @Data
@@ -15,7 +17,7 @@ import java.util.UUID;
 public class Plan {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedUuidV7
     private UUID id;
 
     @Column(nullable = true, unique = false)

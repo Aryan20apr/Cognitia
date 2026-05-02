@@ -3,7 +3,8 @@ package com.intellidesk.cognitia.payments.models.entities;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.UuidGenerator;
+
+import com.intellidesk.cognitia.utils.uuidv7.GeneratedUuidV7;
 import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
@@ -36,8 +37,7 @@ import com.intellidesk.cognitia.payments.models.enums.ProcessingStatus;
 public class Payment {
 
     @Id
-    @GeneratedValue
-    @UuidGenerator
+    @GeneratedUuidV7
     @Column(nullable = false, updatable = false)
     private UUID id;
 
