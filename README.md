@@ -85,7 +85,7 @@ Built with **Java 21**, **Spring Boot 4**, **Spring AI**, **PostgreSQL + pgvecto
 ```
 
 - **Agentic RAG** — the AI agent autonomously decides when to search the knowledge base vs. use general knowledge, via a tool-calling architecture
-- **Cache-Augmented Generation (CAG)** — contextual chunk enrichment at ingestion time pre-bakes LLM-generated situating context into each chunk, so retrieval benefits from richer semantic content without needing query-time re-ranking
+- **Context-Augmented Generation (CAG)** — contextual chunk enrichment at ingestion time pre-bakes LLM-generated situating context into each chunk, so retrieval benefits from richer semantic content without needing query-time re-ranking
 - Metadata-filtered vector search with dynamic filter expressions enforcing tenant isolation, department scope, and classification clearance (ABAC)
 - **Conversational query rewriting** — ambiguous queries are rewritten using recent chat history before vector search
 - Configurable similarity threshold and top-K retrieval for precision/recall tuning
