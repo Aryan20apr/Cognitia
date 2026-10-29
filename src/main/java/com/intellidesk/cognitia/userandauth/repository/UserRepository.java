@@ -10,9 +10,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.intellidesk.cognitia.userandauth.models.entities.User;
+import com.intellidesk.cognitia.userandauth.repository.projections.UserSummary;
 
 public interface UserRepository extends JpaRepository<User, UUID>{
     Optional<User> findByEmail(String email);
+
+    @Query("SELECT u.id AS id, u.name AS name, u.email AS email FROM User u WHERE u.tenantId = :tenantId")
+    List<UserSummary> findSummariesByTenantId(@Param("tenantId") UUID tenantId);
 
     @EntityGraph(attributePaths = "role")
     List<User> findAll();

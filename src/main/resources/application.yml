@@ -4,6 +4,8 @@ spring:
     profiles:
         active: dev
 cognitia:
+  app:
+    public-base-url: http://localhost:5173
   chat:
     stream:
       timeout-seconds: 180
